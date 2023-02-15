@@ -11,8 +11,44 @@
 if(!require(pacman)) install.packages("pacman"); library(pacman)
 p_load(eha)
 
-# eha: pacote do exponencial por partes potência
+# eha: pacote do exponencial por partes pot?ncia
 # latex2exp: pacote para a inserir a linguagem latex em graficos
+
+
+## ---
+## Funcoes para a comparacao de modelos
+## ---
+
+## AIC
+
+## Recomenda-se usar o AIC para selecionar modelos 
+## quando o numero de observacoes
+## (n) e maior que pelo menos 40 vezes o numero de 
+## parametros (p)
+
+AIC.surv = function(loglik, n.param) {
+  aic_formula = 2*(n.param - loglik)
+  return(aic_formula)
+}
+
+
+## BIC
+
+## O BIC e obtido atraves de resultados assintoticos e da 
+## suposicao de que os dados pertencem a familia exponencial
+
+BIC.surv = function(loglik, n.param, n.sample){
+  bayes_criterion = -2*loglik + (log(n.sample) * n.param)
+  return(bayes_criterion)
+}
+
+## HC
+
+HC.surv = function(loglik, n.param, n.sample){
+  hc_criterion = -2*(loglik) + (2*n.param*log(log(n.sample)))
+  return(hc_criterion)
+}
+
 
 ## ---
 ## Funcao para trazer valores das
@@ -156,6 +192,49 @@ rppe = function (n, cuts, levels, alpha)
   x <- runif(n)
   qppe(p = x, cuts = cuts, levels = levels, alpha = alpha)
 }
+
+
+
+##------------------------------------------------------------------------------------------------------
+
+## ---
+## Funcao para realizar as particoes (grid) no suporte do tempo de falha
+## --
+
+time.grid.obs.t <- function(time, event, n.int=NULL)
+{
+  o <- order(time)  ## ordem dos tempos de falha 
+  time <- time[o]   ## ordena o vetor do tempo de falha
+  event <- event[o] ## ordena o vator do indicador de falha
+  time.aux <- unique(time[event==1])
+  if(is.null(n.int))
+  {
+    n.int <- length(time.aux)
+  }
+  
+  m <- length(time.aux)
+  if(n.int > m)
+  {
+    a <- c(0,unique(time[event==1]))
+    a[length(a)] <- Inf
+  }
+  else
+  {
+    b <- min(m,n.int)
+    k1 <- trunc(m/b)
+    r <- m-b*k1
+    k2 <- k1+1
+    idf1 <- seq(k1,(b-r)*k1, k1)
+    idf2 <- sort(seq(m,max(idf1),-k2))
+    idf <- unique(c(idf1,idf2))
+    a <- c(0,time.aux[idf])
+    a[length(a)] <- Inf
+  }
+  return(a=a)
+}
+
+
+
 
 
 ##------------------------------------------------------------------------------------------------------

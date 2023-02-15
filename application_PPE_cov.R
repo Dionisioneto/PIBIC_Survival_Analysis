@@ -12,16 +12,17 @@
 if(!require(pacman)) install.packages("pacman"); library(pacman)
 p_load(eha)
 
-source('C:/Users/NetoDavi/Downloads/funcoes_sobrevivencia_pibic2023 (1).R')
+## ajustar o script com as funcoes de sobrevivencia 
+source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
 
 
 ## ---
 ## Presenca de covariaveis
 ## ---
 
-tamanho.amostral = 200
+tamanho.amostral = 250
 taxas.falha = c(0.2, 0.4, 0.95)
-particoes = c(0.5, 0.9)
+particoes = c(0.3, 1.9)
 potencia = 1.3
 
 set.seed(10)
@@ -41,8 +42,11 @@ delta = ifelse(tempo.falha <= tempo.censura, 1, 0)
 
 table(cut(tempo, c(0,particoes, Inf)))
 
-# chutes = c(rep(0.5,3),1,0.5,1)
-chutes = rep(0.5, 6)
+grids.estimacao = time.grid.obs.t(time = tempo, event = delta, n.int = 2)
+grids.estimacao = grids.estimacao[-c(1, length(grids.estimacao))]
+
+chutes = c(rep(1,3),1,0.5,1)
+# chutes = rep(0.5, 6)
 
 ## Metodo numerico BFGS
 estimacao.teste.cox = optim(par = chutes,
@@ -52,8 +56,9 @@ estimacao.teste.cox = optim(par = chutes,
                           method = "BFGS",
                           tempos = tempo,
                           censura = delta,
-                          intervalos = particoes,
+                          intervalos = grids.estimacao,
                          covariaveis = x.matriz)
+
 taxas.falha
 estimacao.teste.cox$par[1:3]
 
@@ -63,6 +68,8 @@ estimacao.teste.cox$par[4]
 beta
 estimacao.teste.cox$par[5:6]
 
+
+
 ## Metodo numerico de Nelder-Mead
 estimacao.teste.cox2 = optim(par = chutes,
                             fn = loglik.cox,
@@ -71,7 +78,7 @@ estimacao.teste.cox2 = optim(par = chutes,
                             method = "Nelder-Mead",
                             tempos = tempo,
                             censura = delta,
-                            intervalos = particoes,
+                            intervalos = grids.estimacao,
                             covariaveis = x.matriz)
 
 taxas.falha

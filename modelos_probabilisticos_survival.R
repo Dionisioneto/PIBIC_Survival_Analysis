@@ -8,7 +8,8 @@ if(!require(pacman)) install.packages('pacman'); library(pacman)
 
 p_load(flexsurv,survival, eha, ICglm, latex2exp)
 
-
+## carregar o script de funcoes
+source('/cloud/project/funcoes_sobrevivencia_pibic2023.R')
 
 head(lung)
 dim(lung)
@@ -132,7 +133,7 @@ plot(int_tempo, sobrevivencia_km, type = 's',
 
 lines(int_tempo, st_loglog, col = 'magenta', lwd = 2)
 
-legend('topright', "Ajuste Log-Logístico",col = "magenta", lty = 1, bty = 'n')
+legend('topright', "Ajuste Log-Log?stico",col = "magenta", lty = 1, bty = 'n')
 dev.off()
 
 ## modelo gamma
@@ -198,96 +199,99 @@ dev.off()
 
 ## Calculos do AIC, BIC e HC
 
+# ---
 # AIC
-AIC(fit_exp) # Exponencial
-AIC(fit_weibull) # Weibull
-AIC(fit_lognorm) # Log-Normal
-AIC(fit_loglog) # Log-Logistico
-AIC(fit_gamma) # Gama
-AIC(fit_gammagen) # Gama generalizado
-
-
-
-
-# BIC
-
-BIC = function(log_verossimilhanca, n, k){
-  criterio_bayes = -2*log_verossimilhanca + (log(n) * k)
-  return(criterio_bayes)
-}
+# ---
 
 # Exponencial
-BIC(log_verossimilhanca = fit_exp$loglik[1],
-    k = 1,
-    n = summary(fit_exp)$n)
+AIC.surv(loglik = fit_exp$loglik[1], n.param = 1) 
 
 # Weibull
-BIC(log_verossimilhanca = fit_weibull$loglik[1],
-    k = 2,
-    n = summary(fit_weibull)$n)
+AIC.surv(loglik = fit_weibull$loglik[1], n.param = 2)
 
 # Log-Normal
-BIC(log_verossimilhanca = fit_lognorm$loglik[1],
-    k = 2,
-    n = summary(fit_lognorm)$n)
+AIC.surv(loglik = fit_lognorm$loglik[1], n.param = 2)
 
 # Log-Logistico
-BIC(log_verossimilhanca = fit_loglog$loglik[1],
-    k = 2,
-    n = summary(fit_loglog)$n)
+AIC.surv(loglik = fit_loglog$loglik[1], n.param = 2)
 
 # Gama
-BIC(log_verossimilhanca = fit_gamma$loglik,
-    k = 2,
-    n = fit_gamma$N)
+AIC.surv(loglik = fit_gamma$loglik[1], n.param = 2)
 
 # Gama generalizado
-BIC(log_verossimilhanca =fit_gammagen$loglik,
-    k = 3,
-    n = fit_gammagen$N)
+AIC.surv(loglik = fit_gammagen$loglik[1], n.param = 3)
+
+
+# ---
+# BIC
+# ---
+
+# Exponencial
+BIC(loglik = fit_exp$loglik[1],
+    n.param = 1,
+    n.sample= summary(fit_exp)$n)
+
+# Weibull
+BIC(loglik = fit_weibull$loglik[1],
+    n.param = 2,
+    n.sample = summary(fit_weibull)$n)
+
+# Log-Normal
+BIC(loglik = fit_lognorm$loglik[1],
+    n.param = 2,
+    n.sample = summary(fit_lognorm)$n)
+
+# Log-Logistico
+BIC(loglik = fit_loglog$loglik[1],
+    n.param = 2,
+    n.sample = summary(fit_loglog)$n)
+
+# Gama
+BIC(loglik = fit_gamma$loglik,
+    n.param = 2,
+    n.sample = fit_gamma$N)
+
+# Gama generalizado
+BIC(loglik =fit_gammagen$loglik,
+    n.param = 3,
+    n.sample = fit_gammagen$N)
 
 # HC
 
-HC = function(log_vero, n, k){
-  criterio = -2*(log_vero) + 2*k*log(log(n))
-  return(criterio)
-  }
-
 # Exponencial
-HC(log_vero = fit_exp$loglik[1],
-   k = length(fit_exp$coefficients),
-   n = summary(fit_exp)$n)
-
+HC(loglik = fit_exp$loglik[1],
+   n.param= length(fit_exp$coefficients),
+   n.sample = summary(fit_exp)$n)
 
 # Weibull
-HC(log_vero = fit_weibull$loglik[1],
-   k = 2,
-   n = summary(fit_weibull)$n)
+HC(loglik = fit_weibull$loglik[1],
+   n.param= 2,
+   n.sample = summary(fit_weibull)$n)
 
 # Log-Normal
-HC(log_vero = fit_lognorm$loglik[1],
-   k = 2,
-   n = summary(fit_lognorm)$n)
+HC(loglik = fit_lognorm$loglik[1],
+   n.param = 2,
+   n.sample = summary(fit_lognorm)$n)
 
 # Log-Logistico
-HC(log_vero = fit_loglog$loglik[1],
-   k = 2,
-   n = summary(fit_loglog)$n)
+HC(loglik = fit_loglog$loglik[1],
+   n.param = 2,
+   n.sample = summary(fit_loglog)$n)
 
 # Gama
-HC(log_vero = fit_gamma$loglik,
-   k = fit_gamma$npars,
-   n = fit_gamma$N)
+HC(loglik = fit_gamma$loglik,
+   n.param = fit_gamma$npars,
+   n.sample = fit_gamma$N)
 
 # Gama generalizado
-HC(log_vero = fit_gammagen$loglik,
-   k = fit_gammagen$npars,
-   n = fit_gammagen$N)
-
-source('C:/Users/NetoDavi/Downloads/funcoes_sobrevivencia_pibic2023 (1).R')
+HC(loglik = fit_gammagen$loglik,
+   n.param = fit_gammagen$npars,
+   n.sample = fit_gammagen$N)
 
 
+## ---
 ## modelo exponencial por partes
+## ---
 
 ## visualizar o o estimador KM para escolher os intervalos
 
@@ -303,23 +307,15 @@ plot(int_tempo, sobrevivencia_km, type = 's',
 
 ## tres grids, quatro taxas de falha
 
-grids1 = c(100, 200, 305.2)
+grids1 = time.grid.obs.t(time = tempo, event = censura, n.int = 5)
+table(cut(tempo, grids1))
 
-table(cut(tempo, c(0,grids1, Inf)))
+grids1 = grids1[-c(1,length(grids1))]
 
 # quantas taxas eu preciso tentar
 length(grids1) + 1
 
-# est = optim(par = rep(0.005,4),
-#                   fn = loglik.PE2,
-#                   gr = NULL,
-#                   hessian = T,
-#                   method = "BFGS",
-#                   time = tempo,
-#                   delta = censura,
-#                   cuts = grids)
-
-est2 = optim(par = rep(0.001,4),
+est = optim(par = rep(0.01,length(grids1) + 1),
             fn = loglik.PE,
             gr = NULL,
             hessian = F,
@@ -328,7 +324,7 @@ est2 = optim(par = rep(0.001,4),
             delta = censura,
             cuts = grids1)
 
-est2$par
+est$par
 
 par(mfrow = c(1,2))
 surv.pe = PE(time = int_tempo, cuts = grids1, levels = est2$par,
@@ -343,77 +339,89 @@ lines(int_tempo, surv.pe, col = '#D885A3', lwd = 2)
 legend('topright', legend = 'PE(4)',
        lwd=2, bty = 'n', col = '#D885A3', cex = 0.8)
 
+AIC.surv(loglik = -est$value, n.param = length(grids1) + 1)
 
-## AIC
+BIC.surv(loglik = -est$value, n.param = length(grids1) + 1,
+         n.sample = length(tempo))
 
-# (2*2) - (2*est2$value)
-# 
-# function (model) 
-# {
-#   LL <- logLik(object = model)
-#   df <- attr(LL, "df")
-#   c(-2 * LL + 2 * df)
-# }
-# 
-# (-2 * -est2$value) + (2 * 3)
-# 
-# BIC(-est2$value, n = 228, k = 3)
-# HC(-est2$value, n = 228, k = 3)
-
-## AIC
-(-2 * -est2$value) + (2 * 4)
-
-BIC(-est2$value, n = 228, k = 4)
-HC(-est2$value, n = 228, k = 4)
-
-## ---
-## caso 2
-## ---
+HC.surv(loglik = -est$value, n.param = length(grids1) + 1,
+         n.sample = length(tempo))
 
 
+## testar para ate 6 particoes no tempo de falha
 
-## dois grids, tres taxas de falha
-grids2 = c(100, 400)
+particoes = 1:6
 
-table(cut(tempo, c(0,grids2, Inf)))
+for (particao in particoes){
+  value.particao = time.grid.obs.t(time = tempo, event = censura, n.int = particao)
+  
+  grids1 = value.particao[-c(1,length(value.particao))]
+  
+  # quantas taxas eu preciso tentar
+  length(grids1) + 1
+  
+  estimacao = optim(par = rep(0.01,length(grids1) + 1),
+              fn = loglik.PE,
+              gr = NULL,
+              hessian = F,
+              method = "BFGS",
+              time = tempo,
+              delta = censura,
+              cuts = grids1)
+  
+  aic.res = AIC.surv(loglik = -estimacao$value, n.param = length(grids1) + 1)
+  
+  bic.res = BIC.surv(loglik = -estimacao$value, n.param = length(grids1) + 1,
+           n.sample = length(tempo))
+  
+  hc.res = HC.surv(loglik = -estimacao$value, n.param = length(grids1) + 1,
+          n.sample = length(tempo))
+  
+  cat("\n", "Quantidade de particoes: ", particao, "\n", "\n")
+  cat("Valores para as particoes: ", value.particao, "\n" , "\n")
+  
+  cat("valor AIC: ", aic.res, "\n",
+      "valor BIC: ", bic.res, "\n",
+      "valor HC: ", hc.res, "\n")
+}
 
-# quantas taxas eu preciso tentar
-length(grids2) + 1
+## Laco pelo Nelder-Mead
 
-est3 = optim(par = rep(0.001,length(grids2) + 1),
-             fn = loglik.PE,
-             gr = NULL,
-             hessian = F,
-             method = "Nelder-Mead",
-             time = tempo,
-             delta = censura,
-             cuts = grids2)
-
-est3$par
-
-
-surv.pe3 = PE(time = int_tempo, cuts = grids2, levels = est3$par,
-             type = 'survival')
-
-
-plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = 'S(t) estimada',
-     xlab = "Tempo", lwd = 2)
-
-lines(int_tempo, surv.pe3, col = '#8CC0DE', lwd = 2)
-
-legend('topright', legend= 'PE(3)',
-       lwd=2, bty = 'n', col = '#8CC0DE', cex = 0.8)
-
-(-2 * -est3$value) + (2 * 3)
-
-BIC(-est3$value, n = 228, k = 3)
-HC(-est3$value, n = 228, k = 3)
-
-
+for (particao in particoes){
+  value.particao = time.grid.obs.t(time = tempo, event = censura, n.int = particao)
+  
+  grids1 = value.particao[-c(1,length(value.particao))]
+  
+  # quantas taxas eu preciso tentar
+  length(grids1) + 1
+  
+  estimacao = optim(par = rep(0.01,length(grids1) + 1),
+                    fn = loglik.PE,
+                    gr = NULL,
+                    hessian = F,
+                    method = "Nelder-Mead",
+                    time = tempo,
+                    delta = censura,
+                    cuts = grids1)
+  
+  aic.res = AIC.surv(loglik = -estimacao$value, n.param = length(grids1) + 1)
+  
+  bic.res = BIC.surv(loglik = -estimacao$value, n.param = length(grids1) + 1,
+                     n.sample = length(tempo))
+  
+  hc.res = HC.surv(loglik = -estimacao$value, n.param = length(grids1) + 1,
+                   n.sample = length(tempo))
+  
+  cat("\n", "Quantidade de particoes: ", particao, "\n", "\n")
+  cat("Valores para as particoes: ", value.particao, "\n" , "\n")
+  
+  cat("valor AIC: ", aic.res, "\n",
+      "valor BIC: ", bic.res, "\n",
+      "valor HC: ", hc.res, "\n")
+}
 
 ## ----
-## modelo exponencial por partes potencia
+## Modelo Exponencial por Partes Potencia
 ## ----
 
 ## ---
@@ -422,18 +430,24 @@ HC(-est3$value, n = 228, k = 3)
 
 ## tres grids, quatro taxas de falha
 
-# grids1 = c(100, 200, 305.2)
+grids1 = time.grid.obs.t(time = tempo, event = censura, n.int = 3)
+table(cut(tempo, grids1))
 
-# table(cut(tempo, c(0,grids, Inf)))
+grids1 = grids1[-c(1,length(grids1))]
 
-est.ppe = optim(par = c(rep(0.01,length(grids1) + 1),5),
-            fn = loglik.PPE2,
-            gr = NULL,
-            hessian = F,
-            method = "BFGS",
-            time = tempo,
-            delta = censura,
-            cuts = grids1)
+# quantas taxas eu preciso tentar
+length(grids1) + 1
+
+est.ppe = optim(par = c(rep(0.01,length(grids1) + 1),1.5),
+                fn = loglik.PPE2,
+                gr = NULL,
+                hessian = T,
+                method = "BFGS",
+                time = tempo,
+                delta = censura,
+                cuts = grids1)
+
+#est.ppe
 
 taxas.ppe.est1 = est.ppe$par[1:(length(grids1)+1)]
 alpha.ppe.est1 = est.ppe$par[(length(grids1)+2)]
@@ -455,81 +469,107 @@ lines(int_tempo, surv.ppe1 , col = '#FF87CA', lwd = 2)
 legend('topright', legend= 'PPE(4)',
        lwd=2, bty = 'n', col = '#FF87CA', cex = 0.8)
 
-(-2 * -est.ppe$value) + (2 * 4)
+## Medidas de qualidade de ajuste
 
-BIC(-est.ppe$value, n = 228, k = 4)
-HC(-est.ppe$value, n = 228, k = 4)
-
-## ---
-## caso 2
-## ---
-
-## dois grids, tres taxas de falha
-#grids2 = c(100, 400)
-
-#table(cut(tempo, c(0,grids2, Inf)))
-
-# quantas taxas eu preciso tentar
-#length(grids2) + 1
-
-est.ppe2 = optim(par = c(rep(0.01,length(grids2) + 1),5),
-                fn = loglik.PPE2,
-                gr = NULL,
-                hessian = F,
-                method = "BFGS",
-                time = tempo,
-                delta = censura,
-                cuts = grids2)
-
-taxas.ppe.est2 = est.ppe2$par[1:(length(grids2)+1)]
-alpha.ppe.est2 = est.ppe2$par[(length(grids2)+2)]
-
-taxas.ppe.est2; alpha.ppe.est2
-
-surv.ppe2 = PPE(time = int_tempo, cuts = grids2, levels = taxas.ppe.est2,
-                alpha = alpha.ppe.est2, type = 'survival')
-
-plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = 'S(t) estimada',
-     xlab = "Tempo", lwd = 2)
+AIC.surv(loglik = -est.ppe$value, n.param = length(grids1) + 1 + 1)
+BIC.surv(loglik = -est.ppe$value, n.param = length(grids1) + 1 + 1,
+          n.sample = length(tempo))
+HC.surv(loglik = -est.ppe$value, n.param = length(grids1) + 1 + 1,
+         n.sample = length(tempo))
 
 
-lines(int_tempo, surv.ppe2 , col = 'steelblue', lwd = 2)
+## testar para ate 6 particoes no tempo de falha
 
-legend('topright', legend= 'PPE(3)',
-       lwd=2, bty = 'n', col = 'steelblue', cex = 0.8)
+for (particao in particoes){
+  value.particao = time.grid.obs.t(time = tempo, event = censura, n.int = particao)
+  
+  grids1 = value.particao[-c(1,length(value.particao))]
+  
+  
+  estimacao.ppe = optim(par = c(rep(0.01,length(grids1) + 1),1.5),
+                  fn = loglik.PPE2,
+                  gr = NULL,
+                  hessian = T,
+                  method = "BFGS",
+                  time = tempo,
+                  delta = censura,
+                  cuts = grids1)
 
-(-2 * -est.ppe2$value) + (2 * 3) ## AIC
+  
+  aic.res = AIC.surv(loglik = -estimacao.ppe$value, n.param = length(grids1) + 1)
+  
+  bic.res = BIC.surv(loglik = -estimacao.ppe$value, n.param = length(grids1) + 1,
+                     n.sample = length(tempo))
+  
+  hc.res = HC.surv(loglik = -estimacao.ppe$value, n.param = length(grids1) + 1,
+                   n.sample = length(tempo))
+  
+  cat("\n", "Quantidade de particoes: ", particao, "\n", "\n")
+  cat("Valores para as particoes: ", value.particao, "\n" , "\n")
+  
+  cat("valor AIC: ", aic.res, "\n",
+      "valor BIC: ", bic.res, "\n",
+      "valor HC: ", hc.res, "\n")
+}
 
-BIC(-est.ppe2$value, n = 228, k = 3)
-HC(-est.ppe2$value, n = 228, k = 3)
+## verificando com o Nelder-Mead
 
-
+for (particao in particoes){
+  value.particao = time.grid.obs.t(time = tempo, event = censura, n.int = particao)
+  
+  grids1 = value.particao[-c(1,length(value.particao))]
+  
+  
+  estimacao.ppe = optim(par = c(rep(0.01,length(grids1) + 1),1.5),
+                        fn = loglik.PPE2,
+                        gr = NULL,
+                        hessian = F,
+                        method = "Nelder-Mead",
+                        time = tempo,
+                        delta = censura,
+                        cuts = grids1)
+  
+  
+  aic.res = AIC.surv(loglik = -estimacao.ppe$value, n.param = length(grids1) + 1)
+  
+  bic.res = BIC.surv(loglik = -estimacao.ppe$value, n.param = length(grids1) + 1,
+                     n.sample = length(tempo))
+  
+  hc.res = HC.surv(loglik = -estimacao.ppe$value, n.param = length(grids1) + 1,
+                   n.sample = length(tempo))
+  
+  cat("\n", "Quantidade de particoes: ", particao, "\n", "\n")
+  cat("Valores para as particoes: ", value.particao, "\n" , "\n")
+  
+  cat("valor AIC: ", aic.res, "\n",
+      "valor BIC: ", bic.res, "\n",
+      "valor HC: ", hc.res, "\n")
+}
 
 
 ## Teste de Razao de Verrosimilhancas
 
-Modelo = c("Gama Generalizado", "Exponencial", "Log-Logistico",
-           "Log-Normal", "Weibull", "gamma")
-
-Verossimilhanca = c(fit_gammagen$loglik, fit_exp$loglik,
-                    fit_loglog$loglik, fit_lognorm$loglik,
-                    fit_weibull$loglik, fit_gamma$loglik)
-
-TRV = 2*(fit_gammagen$loglik-Verossimilhanca)
-
-valor_p = round(pchisq(TRV,df=2,lower.tail=FALSE), 2)
-
-resultado = data.frame(Modelo=Modelo, 
-                       Verossimilhanca = Verossimilhanca, 
-                       TRV=TRV, 
-                       valor_p=valor_p)
-
-
-int_tempo
+# Modelo = c("Gama Generalizado", "Exponencial", "Log-Logistico",
+#            "Log-Normal", "Weibull", "gamma")
+# 
+# Verossimilhanca = c(fit_gammagen$loglik, fit_exp$loglik,
+#                     fit_loglog$loglik, fit_lognorm$loglik,
+#                     fit_weibull$loglik, fit_gamma$loglik)
+# 
+# TRV = 2*(fit_gammagen$loglik-Verossimilhanca)
+# 
+# valor_p = round(pchisq(TRV,df=2,lower.tail=FALSE), 2)
+# 
+# resultado = data.frame(Modelo=Modelo, 
+#                        Verossimilhanca = Verossimilhanca, 
+#                        TRV=TRV, 
+#                        valor_p=valor_p)
+# 
+# 
+# int_tempo
 
 ## fitar o modelo exponencial por parte
-## colocar o valor do KM dentro da função de sobrevivencia com a funcao
+## colocar o valor do KM dentro da fun??o de sobrevivencia com a funcao
 
 
 
