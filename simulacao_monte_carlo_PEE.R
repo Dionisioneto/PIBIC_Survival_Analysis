@@ -10,23 +10,25 @@ p_load(eha)
 ## ajustar o script com as funcoes de sobrevivencia 
 source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
 
+set.seed(10)
 ## ajsutando a parametrizacao 
-tamanho.amostral = 250
+tamanho.amostral = 600
 
 ## parametros do PPE
-taxas.falha = c(0.2, 0.4, 0.95)
-particoes = c(0.3, 1.9)
-potencia = 1.3
+taxas.falha = c(0.2, 0.4, 0.65)
+particoes = c(0.5, 0.9)
+potencia = 1.4
 
 ## pesos das covariaveis
-set.seed(10)
+
 beta = c(0.5, 2.3)
 x1 = rnorm(n = tamanho.amostral, mean = 0, sd = 1)
 x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5)
 x.matriz = as.matrix(cbind(x1, x2))
 
 # numero de iteracoes a acontecer
-n.iter = 50 
+n.iter = 500 
+
 
 ## armazenamento
 taxas.falha.iter = matrix(data = 0, nrow = n.iter, ncol = length(taxas.falha))
@@ -51,10 +53,11 @@ for (i in 1:n.iter){
  
   
   ## particao para a estimacao
-  grids.estimacao = time.grid.obs.t(time = tempo, event = delta, n.int = 2)
-  grids.estimacao = grids.estimacao[-c(1, length(grids.estimacao))]
+  grid = time.grid.obs.t(tempo, delta, n.int = 3)
+  grid = grid[-c(1, length(grid))]
   
-  chutes = c(rep(1,3),1,0.5,1)
+  chutes = c(rep(0.5,length(grid)+1),1,0.5,1)
+  
   
   ## Metodo numerico BFGS
   estimacao.teste.cox = optim(par = chutes,
@@ -64,7 +67,7 @@ for (i in 1:n.iter){
                               method = "BFGS",
                               tempos = tempo,
                               censura = delta,
-                              intervalos = grids.estimacao,
+                              intervalos = grid,
                               covariaveis = x.matriz)
   
   ## salvar resultados
@@ -73,6 +76,8 @@ for (i in 1:n.iter){
   potencia.iter[i] = estimacao.teste.cox$par[length(taxas.falha) +1]
   betas.iter[i,] = estimacao.teste.cox$par[(length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))]
 }
+
+
 
 ## 1. taxas de falha
 
@@ -103,18 +108,6 @@ beta
 colMeans(betas.iter)
 apply(betas.iter, MARGIN = 2, FUN = "sd")
 bias(colMeans(betas.iter), beta)
-
-## matriz das taxas de falha
-estimacao.teste.cox$par[1:length(taxas.falha)]
-
-## vetor do parametro de potencia
-potencia
-estimacao.teste.cox$par[4]
-
-## matriz do coeficientes (betas)
-beta
-estimacao.teste.cox$par[5:6]
-
 
 
 

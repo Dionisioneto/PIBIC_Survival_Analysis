@@ -20,45 +20,47 @@ source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023
 ## Presenca de covariaveis
 ## ---
 
-tamanho.amostral = 250
+set.seed(10)
+
+tamanho.amostral = 500
 taxas.falha = c(0.2, 0.4, 0.95)
-particoes = c(0.3, 1.9)
+particoes = c(0.5, 0.9)
 potencia = 1.3
 
-set.seed(10)
+
 beta = c(0.5, 2.3)
 x1 = rnorm(n = tamanho.amostral, mean = 0, sd = 1)
 x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5)
 x.matriz = as.matrix(cbind(x1, x2))
 
 tempo.falha = gen.mepp.cox(n = tamanho.amostral, lambda.par = taxas.falha, alpha.par = potencia,
-              cuts = particoes, x.mat = x.matriz, beta.par = beta)
+                           cuts = particoes, x.mat = x.matriz, beta.par = beta)
 
 tempo.censura = gen.mepp.cox(n = tamanho.amostral, lambda.par = taxas.falha, alpha.par = potencia,
-                           cuts = particoes, x.mat = x.matriz, beta.par = beta)
+                             cuts = particoes, x.mat = x.matriz, beta.par = beta)
 
 tempo = pmin(tempo.falha, tempo.censura)
 delta = ifelse(tempo.falha <= tempo.censura, 1, 0)
 
-table(cut(tempo, c(0,particoes, Inf)))
+#table(cut(tempo, c(0,particoes, Inf)))
 
-grids.estimacao = time.grid.obs.t(time = tempo, event = delta, n.int = 2)
-grids.estimacao = grids.estimacao[-c(1, length(grids.estimacao))]
 
-chutes = c(rep(1,3),1,0.5,1)
-# chutes = rep(0.5, 6)
+#chutes = rep(0.5, 6)
+
+grid = time.grid.obs.t(tempo, delta, n.int = 3)
+grid = grid[-c(1, length(grid))]
+chutes = c(rep(0.5,length(grid)+1),1,0.5,1)
 
 ## Metodo numerico BFGS
 estimacao.teste.cox = optim(par = chutes,
-                          fn = loglik.cox,
-                          gr = NULL,
-                          hessian = TRUE,
-                          method = "BFGS",
-                          tempos = tempo,
-                          censura = delta,
-                          intervalos = grids.estimacao,
-                         covariaveis = x.matriz)
-
+                            fn = loglik.cox,
+                            gr = NULL,
+                            hessian = TRUE,
+                            method = "BFGS",
+                            tempos = tempo,
+                            censura = delta,
+                            intervalos = grid,
+                            covariaveis = x.matriz)
 taxas.falha
 estimacao.teste.cox$par[1:3]
 
@@ -68,27 +70,6 @@ estimacao.teste.cox$par[4]
 beta
 estimacao.teste.cox$par[5:6]
 
-
-
-## Metodo numerico de Nelder-Mead
-estimacao.teste.cox2 = optim(par = chutes,
-                            fn = loglik.cox,
-                            gr = NULL,
-                            hessian = FALSE,
-                            method = "Nelder-Mead",
-                            tempos = tempo,
-                            censura = delta,
-                            intervalos = grids.estimacao,
-                            covariaveis = x.matriz)
-
-taxas.falha
-estimacao.teste.cox2$par[1:3] 
-
-potencia
-
-
-beta
-estimacao.teste.cox2$par[5:6] 
 
 
 ## ---
