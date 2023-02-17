@@ -10,10 +10,10 @@
 ## ---
 
 if(!require(pacman)) install.packages("pacman"); library(pacman)
-p_load(eha)
+p_load(eha, survival)
 
 ## ajustar o script com as funcoes de sobrevivencia 
-source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
+source('C:/Users/dionisio.neto/Desktop/Dionisio_Neto/Survival_Analysis/PIBIC_Survival_Analysis/funcoes_sobrevivencia_pibic2023.R')
 
 
 ## ---
@@ -70,6 +70,49 @@ estimacao.teste.cox$par[4]
 beta
 estimacao.teste.cox$par[5:6]
 
+## ---
+## Aplicacoes aos dados de cancer de pulmao
+## ---
+
+data(lung)
+
+head(lung)
+
+tempo = lung$time
+censura = ifelse(lung$status == 1, 0, 1)
+
+## variaveis a serem utilizadas
+
+# 1. sex
+# 2. age
+# 3. meal.cal: quantidade de calorias consumidas nas refeicoes;
+# 4. wt.loss: quantidade de peso perdido no  ́ultimos sei meses.
+
+lung$sex
+lung$age
+#lung$meal.cal
+#lung$wt.loss
+
+x.matriz = as.matrix(cbind(lung$age, lung$sex))
+
+#table(cut(tempo, c(0,particoes, Inf)))
+
+#chutes = rep(0.5, 6)
+
+grid = time.grid.obs.t(tempo, censura, n.int = 3)
+grid = grid[-c(1, length(grid))]
+chutes = c(rep(0.01,length(grid)+1),2,0.5,2)
+
+## Metodo numerico BFGS
+est.cov.cox = optim(par = chutes,
+                          fn = loglik.cox,
+                          gr = NULL,
+                          hessian = F,
+                          method = "Nelder-Mead",
+                          tempos = tempo,
+                          censura = censura,
+                          intervalos = grid,
+                          covariaveis = x.matriz)
 
 
 ## ---
