@@ -13,7 +13,7 @@ if(!require(pacman)) install.packages("pacman"); library(pacman)
 p_load(eha, survival)
 
 ## ajustar o script com as funcoes de sobrevivencia 
-source('C:/Users/dionisio.neto/Desktop/Dionisio_Neto/Survival_Analysis/PIBIC_Survival_Analysis/funcoes_sobrevivencia_pibic2023.R')
+source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
 
 
 ## ---
@@ -93,7 +93,19 @@ lung$age
 #lung$meal.cal
 #lung$wt.loss
 
-x.matriz = as.matrix(cbind(lung$age, lung$sex))
+## padronizacao da idade
+age.z = (lung$age - mean(lung$age))/sd(lung$age)
+
+
+## categorizacao bernoulli do sexo
+sex.b = ifelse(lung$sex == 1, 0, 1)
+
+## categorizacao da qualidade em cuidado proprio (acima/abaixo da mediana)
+#lung$ph.karno[is.na(lung$ph.karno)] = median(lung$ph.karno, na.rm = T)
+
+#phkarno.z =  ifelse(lung$ph.karno >= median(lung$ph.karno, na.rm = T), 1, 0)
+
+x.matriz = as.matrix(cbind(age.z, sex.b))
 
 #table(cut(tempo, c(0,particoes, Inf)))
 
@@ -101,18 +113,21 @@ x.matriz = as.matrix(cbind(lung$age, lung$sex))
 
 grid = time.grid.obs.t(tempo, censura, n.int = 3)
 grid = grid[-c(1, length(grid))]
-chutes = c(rep(0.01,length(grid)+1),2,0.5,2)
+chutes = c(rep(0.01,length(grid)+1),1,0.5,1)
+
 
 ## Metodo numerico BFGS
 est.cov.cox = optim(par = chutes,
                           fn = loglik.cox,
                           gr = NULL,
-                          hessian = F,
-                          method = "Nelder-Mead",
+                          hessian = T,
+                          method = "BFGS",
                           tempos = tempo,
                           censura = censura,
                           intervalos = grid,
                           covariaveis = x.matriz)
+
+est.cov.cox$par
 
 
 ## ---

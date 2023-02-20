@@ -9,7 +9,7 @@ if(!require(pacman)) install.packages('pacman'); library(pacman)
 p_load(flexsurv,survival, eha, ICglm, latex2exp)
 
 ## carregar o script de funcoes
-source('C:/Users/Dionisio/Desktop/Dionisio_Neto/PIBIC_Survival_Analysis/funcoes_sobrevivencia_pibic2023.R')
+source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
 
 head(lung)
 dim(lung)
@@ -307,7 +307,7 @@ plot(int_tempo, sobrevivencia_km, type = 's',
 
 ## tres grids, quatro taxas de falha
 
-grids1 = time.grid.obs.t(time = tempo, event = censura, n.int = 5)
+grids1 = time.grid.obs.t(time = tempo, event = censura, n.int = 8)
 table(cut(tempo, grids1))
 
 grids1 = grids1[-c(1,length(grids1))]
@@ -319,7 +319,7 @@ est = optim(par = rep(0.01,length(grids1) + 1),
             fn = loglik.PE,
             gr = NULL,
             hessian = F,
-            method = "Nelder-Mead",
+            method = "BFGS",
             time = tempo,
             delta = censura,
             cuts = grids1)
@@ -430,7 +430,7 @@ for (particao in particoes){
 
 ## tres grids, quatro taxas de falha
 
-grids1 = time.grid.obs.t(time = tempo, event = censura, n.int = 3)
+grids1 = time.grid.obs.t(time = tempo, event = censura, n.int = 2)
 table(cut(tempo, grids1))
 
 grids1 = grids1[-c(1,length(grids1))]
@@ -454,7 +454,7 @@ alpha.ppe.est1 = est.ppe$par[(length(grids1)+2)]
 
 taxas.ppe.est1; alpha.ppe.est1
 
-par(mfrow = c(1,2))
+
 
 surv.ppe1 = PPE(time = int_tempo, cuts = grids1, levels = taxas.ppe.est1,
     alpha = alpha.ppe.est1, type = 'survival')
@@ -545,6 +545,76 @@ for (particao in particoes){
       "valor BIC: ", bic.res, "\n",
       "valor HC: ", hc.res, "\n")
 }
+
+## grafico dos melhores modelos para o PE (4) e PPE (1)
+
+## Exponencial por partes
+
+
+grids1 = time.grid.obs.t(time = tempo, event = censura, n.int = 4)
+table(cut(tempo, grids1))
+
+grids1 = grids1[-c(1,length(grids1))]
+
+est = optim(par = rep(0.01,length(grids1) + 1),
+            fn = loglik.PE,
+            gr = NULL,
+            hessian = F,
+            method = "BFGS",
+            time = tempo,
+            delta = censura,
+            cuts = grids1)
+
+surv.pe = PE(time = int_tempo, cuts = grids1, levels = est$par,
+             type = 'survival')
+
+par(mfrow = c(1,2))
+
+plot(int_tempo, sobrevivencia_km, type = 's',
+     ylab = 'S(t) estimada',
+     xlab = "Tempo", lwd = 2)
+
+lines(int_tempo, surv.pe, col = '#D885A3', lwd = 2)
+
+legend('topright', legend = 'PE(4)',
+       lwd=2, bty = 'n', col = '#D885A3', cex = 0.8)
+
+## Exponencial por partes potencia
+
+grids1 = time.grid.obs.t(time = tempo, event = censura, n.int = 1)
+table(cut(tempo, grids1))
+
+grids1 = grids1[-c(1,length(grids1))]
+
+est.ppe = optim(par = c(rep(0.01,length(grids1) + 1),1.5),
+                fn = loglik.PPE2,
+                gr = NULL,
+                hessian = T,
+                method = "BFGS",
+                time = tempo,
+                delta = censura,
+                cuts = grids1)
+
+#est.ppe
+
+taxas.ppe.est1 = est.ppe$par[1:(length(grids1)+1)]
+alpha.ppe.est1 = est.ppe$par[(length(grids1)+2)]
+
+taxas.ppe.est1; alpha.ppe.est1
+
+surv.ppe1 = PPE(time = int_tempo, cuts = grids1, levels = taxas.ppe.est1,
+                alpha = alpha.ppe.est1, type = 'survival')
+
+plot(int_tempo, sobrevivencia_km, type = 's',
+     ylab = 'S(t) estimada',
+     xlab = "Tempo", lwd = 2)
+
+
+lines(int_tempo, surv.ppe1 , col = '#FF87CA', lwd = 2)
+
+legend('topright', legend= 'PPE(1)',
+       lwd=2, bty = 'n', col = '#FF87CA', cex = 0.8)
+
 
 
 ## Teste de Razao de Verrosimilhancas
