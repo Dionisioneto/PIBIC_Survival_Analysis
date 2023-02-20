@@ -9,7 +9,7 @@ if(!require(pacman)) install.packages('pacman'); library(pacman)
 p_load(flexsurv,survival, eha, ICglm, latex2exp)
 
 ## carregar o script de funcoes
-source('/cloud/project/funcoes_sobrevivencia_pibic2023.R')
+source('C:/Users/Dionisio/Desktop/Dionisio_Neto/PIBIC_Survival_Analysis/funcoes_sobrevivencia_pibic2023.R')
 
 head(lung)
 dim(lung)
@@ -33,12 +33,12 @@ int_tempo = km$time
 # Funcao de sobrevivencia para cada intervalo do Kaplan-Meier
 sobrevivencia_km = km$surv
 
-
+par(mfrow = c(1,2))
 
 # Visualizacao
 jpeg("estimador_km.jpeg", width = 1000, height = 700)
 plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = expression(hat(S(t))),
+     ylab = "S(t) estimada",
      xlab = "Tempo", lwd = 2)
 dev.off()
 
@@ -62,7 +62,7 @@ st_exp = exp(-int_tempo/lambda)
 
 jpeg("ajuste_exponencial.jpeg", width = 1000, height = 700)
 plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = expression(hat(S(t))),
+     ylab = "S(t) estimada",
      xlab = "Tempo")
 
 lines(int_tempo, st_exp, col = 'red', lwd = 2)
@@ -84,7 +84,7 @@ st_wb
 
 jpeg("ajuste_weibull.jpeg", width = 1000, height = 700)
 plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = expression(hat(S(t))),
+     ylab = "S(t) estimada",
      xlab = "Tempo")
 
 lines(int_tempo, st_wb, col = 'purple', lwd = 2)
@@ -104,7 +104,7 @@ st_lognorm = pnorm(-(log(int_tempo) - media)/dp)
 
 jpeg("ajuste_lognorm.jpeg", width = 1000, height = 700)
 plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = expression(hat(S(t))),
+     ylab = "S(t) estimada",
      xlab = "Tempo")
 
 lines(int_tempo, st_lognorm, col = 'forestgreen', lwd = 2)
@@ -128,12 +128,12 @@ st_loglog = 1/(1 + (exp(a) * (int_tempo)^b))
 
 jpeg("ajuste_loglogistico.jpeg", width = 1000, height = 700)
 plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = expression(hat(S(t))),
+     ylab = "S(t) estimada",
      xlab = "Tempo")
 
 lines(int_tempo, st_loglog, col = 'magenta', lwd = 2)
 
-legend('topright', "Ajuste Log-Log?stico",col = "magenta", lty = 1, bty = 'n')
+legend('topright', "Ajuste Log-Logístico",col = "magenta", lty = 1, bty = 'n')
 dev.off()
 
 ## modelo gamma
@@ -147,7 +147,7 @@ st_gamma = 1 - pgamma(int_tempo, alpha_gamma, beta_gamma)
 
 jpeg("ajuste_gamma.jpeg", width = 1000, height = 700)
 plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = expression(hat(S(t))),
+     ylab = "S(t) estimada",
      xlab = "Tempo")
 
 lines(int_tempo, st_gamma, col = 'dodgerblue4', lwd = 2)
@@ -170,7 +170,7 @@ st_gammagen = 1 - pgengamma(int_tempo, mu, sigma, k)
 
 jpeg("ajuste_gamma_generalizado.jpeg", width = 1000, height = 700)
 plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = expression(hat(S(t))),
+     ylab = "S(t) estimada",
      xlab = "Tempo")
 
 lines(int_tempo, st_gammagen, col = 'goldenrod3', lwd = 2)
@@ -180,7 +180,7 @@ dev.off()
 
 jpeg("ajuste_modelos.jpeg", width = 1000, height = 700)
 plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = expression(hat(S(t))),
+     ylab = "S(t) estimada",
      xlab = "Tempo")
 
 lines(int_tempo, st_exp, col = 'red', lwd = 2)
@@ -227,64 +227,64 @@ AIC.surv(loglik = fit_gammagen$loglik[1], n.param = 3)
 # ---
 
 # Exponencial
-BIC(loglik = fit_exp$loglik[1],
+BIC.surv(loglik = fit_exp$loglik[1],
     n.param = 1,
     n.sample= summary(fit_exp)$n)
 
 # Weibull
-BIC(loglik = fit_weibull$loglik[1],
+BIC.surv(loglik = fit_weibull$loglik[1],
     n.param = 2,
     n.sample = summary(fit_weibull)$n)
 
 # Log-Normal
-BIC(loglik = fit_lognorm$loglik[1],
+BIC.surv(loglik = fit_lognorm$loglik[1],
     n.param = 2,
     n.sample = summary(fit_lognorm)$n)
 
 # Log-Logistico
-BIC(loglik = fit_loglog$loglik[1],
+BIC.surv(loglik = fit_loglog$loglik[1],
     n.param = 2,
     n.sample = summary(fit_loglog)$n)
 
 # Gama
-BIC(loglik = fit_gamma$loglik,
+BIC.surv(loglik = fit_gamma$loglik,
     n.param = 2,
     n.sample = fit_gamma$N)
 
 # Gama generalizado
-BIC(loglik =fit_gammagen$loglik,
+BIC.surv(loglik =fit_gammagen$loglik,
     n.param = 3,
     n.sample = fit_gammagen$N)
 
 # HC
 
 # Exponencial
-HC(loglik = fit_exp$loglik[1],
+HC.surv(loglik = fit_exp$loglik[1],
    n.param= length(fit_exp$coefficients),
    n.sample = summary(fit_exp)$n)
 
 # Weibull
-HC(loglik = fit_weibull$loglik[1],
+HC.surv(loglik = fit_weibull$loglik[1],
    n.param= 2,
    n.sample = summary(fit_weibull)$n)
 
 # Log-Normal
-HC(loglik = fit_lognorm$loglik[1],
+HC.surv(loglik = fit_lognorm$loglik[1],
    n.param = 2,
    n.sample = summary(fit_lognorm)$n)
 
 # Log-Logistico
-HC(loglik = fit_loglog$loglik[1],
+HC.surv(loglik = fit_loglog$loglik[1],
    n.param = 2,
    n.sample = summary(fit_loglog)$n)
 
 # Gama
-HC(loglik = fit_gamma$loglik,
+HC.surv(loglik = fit_gamma$loglik,
    n.param = fit_gamma$npars,
    n.sample = fit_gamma$N)
 
 # Gama generalizado
-HC(loglik = fit_gammagen$loglik,
+HC.surv(loglik = fit_gammagen$loglik,
    n.param = fit_gammagen$npars,
    n.sample = fit_gammagen$N)
 
@@ -296,7 +296,7 @@ HC(loglik = fit_gammagen$loglik,
 ## visualizar o o estimador KM para escolher os intervalos
 
 plot(int_tempo, sobrevivencia_km, type = 's',
-     ylab = expression(hat(S(t))),
+     ylab = "S(t) estimada",
      xlab = "Tempo", lwd = 2)
 
 #tempo; censura
