@@ -10,10 +10,10 @@
 ## ---
 
 if(!require(pacman)) install.packages("pacman"); library(pacman)
-p_load(eha, survival)
+p_load(eha, survival, bbmle)
 
 ## ajustar o script com as funcoes de sobrevivencia 
-source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
+source('C:/Users/dionisio.neto/Desktop/Dionisio_Neto/Survival_Analysis/PIBIC_Survival_Analysis/funcoes_sobrevivencia_pibic2023.R')
 
 
 ## ---
@@ -69,6 +69,58 @@ estimacao.teste.cox$par[4]
 
 beta
 estimacao.teste.cox$par[5:6]
+
+
+## erro padrao desenvolvido 
+eps = sqrt(diag(solve(estimacao.teste.cox$hessian)))
+
+## estimcao pelo pacote bbmle
+
+start.list = list(hazards = c(0.5,0.5,0.5),
+                  exp = 1.5,
+                  betas = c(0.5,0.6))
+
+
+fit2 = mle2(minuslogl = loglik.cox,
+            start = start.list,
+            gr = NULL,
+            method = "BFGS",
+            tempos = tempo,
+            censura = delta,
+            intervalos = grid,
+            covariaveis = x.matriz)
+
+fit2 = mle(minuslogl = loglik.cox,
+           start = chutes,
+           gr = NULL,
+           method = "BFGS",
+           tempos = tempo,
+           censura = delta,
+           intervalos = grid,
+           covariaveis = x.matriz)
+
+
+## estrutura do intervalo de confianca
+
+## numero de parametros estimados
+n.param.est = length(taxas.falha) + length(potencia) + length(beta) 
+
+## nivel de confianca
+conf.level = 0.95
+
+t.quant = qt(p = (1 - conf.level)/2, df = tamanho.amostral - n.param.est)*-1
+# 
+# fit<-optim(pars,li_func,control=list("fnscale"=-1),hessian=TRUE,...)
+# fisher_info<-solve(-fit$hessian)
+# prop_sigma<-sqrt(diag(fisher_info))
+# prop_sigma<-diag(prop_sigma)
+# upper<-fit$par+1.96*prop_sigma
+# lower<-fit$par-1.96*prop_sigma
+# interval<-data.frame(value=fit$par, upper=upper, lower=lower)
+
+
+estimacao.teste.cox$par[1:3]  
+
 
 ## ---
 ## Aplicacoes aos dados de cancer de pulmao
