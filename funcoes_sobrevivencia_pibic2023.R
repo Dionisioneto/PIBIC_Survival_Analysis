@@ -464,15 +464,10 @@ loglik.cox = function(par,tempos,
   ## informacoes exponencial por partes Potencia (PPE)
   F1.t = (F0.t)^exp
   f1.t = exp*(F0.t)^(exp-1) * f0.t
-  
+
   s1.t = 1 - F1.t
-  h1.t = f1.t/s1.t
   
-  # h1.t = PPE(time = tempos, cuts = intervalos, 
-  #           levels = hazards, alpha = exp, type = 'hazard')
-  # 
-  # s1.t = PPE(time = tempos, cuts = intervalos, 
-  #           levels = hazards, alpha = exp, type = 'survival')
+  h1.t = f1.t/s1.t 
   
   ## efeito das covariaveis
   pred.linear = covariaveis %*% betas

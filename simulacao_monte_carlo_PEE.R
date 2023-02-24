@@ -5,13 +5,25 @@
 ## Pacotes
 
 if(!require(pacman)) install.packages("pacman"); library(pacman)
-p_load(eha)
+p_load(eha, dplyr, maxLik)
 
 ## ajustar o script com as funcoes de sobrevivencia 
 source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
 
+
+## funcao para calcular o bias%
+bias = function(est.matrix, param.matrix){
+  bias.calculation = ((est.matrix - param.matrix)/param.matrix)*100
+  return(bias.calculation)
+}
+
+## ------
+## Realizacao do experimento
+## ------
+
+
 set.seed(10)
-## ajsutando a parametrizacao 
+## ajustando a parametrizacao 
 tamanho.amostral = 600
 
 ## parametros do PPE
@@ -27,8 +39,8 @@ x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5)
 x.matriz = as.matrix(cbind(x1, x2))
 
 # numero de iteracoes a acontecer
-n.iter = 50 
-
+n.iter = 50
+iteracao = 1 ## iniciador do laco while
 
 ## armazenamento
 matrix.iter = matrix(data = 0, nrow = n.iter, 
@@ -37,86 +49,11 @@ matrix.iter = matrix(data = 0, nrow = n.iter,
 matrix.var = matrix(data = 0, nrow = n.iter, 
                     ncol = length(taxas.falha) + length(potencia) + length(beta))
 
-
-for (i in 1:n.iter){
-  
-  cat("Realizando iteracao: ", i, "/", n.iter, "\n", sep = "")
-  
-  ## geracao de dados do tempo de falha e tempo com censura
-  tempo.falha = gen.mepp.cox(n = tamanho.amostral, lambda.par = taxas.falha, alpha.par = potencia,
-                             cuts = particoes, x.mat = x.matriz, beta.par = beta)
-  
-  tempo.censura = gen.mepp.cox(n = tamanho.amostral, lambda.par = taxas.falha, alpha.par = potencia,
-                               cuts = particoes, x.mat = x.matriz, beta.par = beta)
-  
-  ## geracao do tempo e censura
-  tempo = pmin(tempo.falha, tempo.censura)
-  delta = ifelse(tempo.falha <= tempo.censura, 1, 0)
- 
-  
-  ## particao para a estimacao
-  grid = time.grid.obs.t(tempo, delta, n.int = 3)
-  grid = grid[-c(1, length(grid))]
-  
-  chutes = c(rep(0.5,length(grid)+1),1,0.5,1)
-  
-  
-  ## Metodo numerico BFGS
-  estimacao.teste.cox = optim(par = chutes,
-                              fn = loglik.cox,
-                              gr = NULL,
-                              hessian = TRUE,
-                              method = "BFGS",
-                              tempos = tempo,
-                              censura = delta,
-                              intervalos = grid,
-                              covariaveis = x.matriz)
-  
-  ## salvar resultados
-  matrix.iter[i,1:length(taxas.falha)] = estimacao.teste.cox$par[1:length(taxas.falha)]
-  matrix.iter[i,length(taxas.falha) + 1] = estimacao.teste.cox$par[length(taxas.falha) +1]
-  matrix.iter[i, (length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))] = estimacao.teste.cox$par[(length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))]
-  
-  matrix.var[i,] = diag(solve(-estimacao.teste.cox$hessian))
-}
-
-## funcao para calcular o bias%
-bias = function(est.matrix, param.matrix){
-  bias.calculation = ((est.matrix - param.matrix)/param.matrix)*100
-  return(bias.calculation)
-}
-
-
-## 1. taxas de falha
-
-taxas.falha
-colMeans(matrix.iter[,1:length(taxas.falha)])
-apply(matrix.iter[,1:length(taxas.falha)], MARGIN = 2, FUN = "sd")
-
-bias(colMeans(matrix.iter[,1:length(taxas.falha)]),taxas.falha)
-
-## 2. potencia
-
-potencia
-mean(matrix.iter[,length(taxas.falha) + 1])
-sd(matrix.iter[,length(taxas.falha) + 1])
-#bias(mean(potencia.iter), potencia)
-
-## 3. coeficientes
-
-beta
-colMeans(matrix.iter[, (length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))])
-apply(matrix.iter[, (length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))], MARGIN = 2, FUN = "sd")
-bias(colMeans(matrix.iter[, (length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))]), beta)
-
 ## codigo para informar o erro e tentar de novo a simulcao
-## paranao quebrar o laco 
+## para nao quebrar o laco 
 
-n.iter = 10
 
 iter.error = c()
-
-iteracao = 1
 
 while (iteracao <= n.iter) {
   result = tryCatch({
@@ -135,10 +72,10 @@ while (iteracao <= n.iter) {
     
     
     ## particao para a estimacao
-    grid = time.grid.obs.t(tempo, delta, n.int = 3)
+    grid = time.grid.obs.t(tempo, delta, n.int = length(taxas.falha))
     grid = grid[-c(1, length(grid))]
     
-    chutes = c(rep(4,length(grid)+1),1,0.5,1)
+    chutes = c(rep(0.1,length(grid)+1),1,0.5,1)
     
     
     ## Metodo numerico BFGS
@@ -177,12 +114,73 @@ while (iteracao <= n.iter) {
     #iteracao = iteracao
   }
   
-  # caso conttrario, com com os resultados
+  # caso contrario, com os resultados
 }
 
-## retirando os NA
+ ## retirando os NA
 iter.error[!is.na(iter.error)]
 
 
+## ------
+## Verificacao do real com o predito
+## ------
 
+## 1. taxas de falha
+
+taxas.falha
+colMeans(matrix.iter[,1:length(taxas.falha)])
+apply(matrix.iter[,1:length(taxas.falha)], MARGIN = 2, FUN = "sd")
+
+bias(colMeans(matrix.iter[,1:length(taxas.falha)]),taxas.falha)
+
+## 2. potencia
+
+potencia
+mean(matrix.iter[,length(taxas.falha) + 1])
+sd(matrix.iter[,length(taxas.falha) + 1])
+#bias(mean(potencia.iter), potencia)
+
+## 3. coeficientes
+
+beta
+colMeans(matrix.iter[, (length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))])
+apply(matrix.iter[, (length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))], MARGIN = 2, FUN = "sd")
+bias(colMeans(matrix.iter[, (length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))]), beta)
+
+## ------
+## Verificacao da matriz Hessiana
+## ------
+
+#*** pergunta: porque deu tudo negativo?
+matrix.var
+
+## ------
+## criacao do coverage probability
+## ------
+
+
+## O covergae probability e um conceito frequentista que busca
+## avaliar dentro do total de repeticoes do seu experimento a porcentagem de
+## intervalos de confiance que conseguem captar o seu real parametro
+
+## IC(par) = par +- (quantil_t)*(diagonal_inverso_hessiano)
+
+## numero de parametros estimados
+n.param.est = length(taxas.falha) + length(potencia) + length(beta) 
+  
+## nivel de confianca
+conf.level = 0.95
+
+t.quant = qt(p = (1 - conf.level)/2, df = tamanho.amostral - n.param.est)*-1
+
+sup.int = matrix.iter[,1:length(taxas.falha)] + (t.quant*(-1)*matrix.var[,1:length(taxas.falha)])
+inf.int = matrix.iter[,1:length(taxas.falha)] - (t.quant*(-1)*matrix.var[,1:length(taxas.falha)])
+
+matrix.taxas.par = matrix(rep(taxas.falha, n.iter), nrow = n.iter, ncol = length(taxas.falha),
+       byrow = T)
+
+## porcentagem de capturacao do intervalo de confianca
+colMeans(matrix.taxas.par >= inf.int & matrix.taxas.par <= sup.int)
+
+##*** alguma coisa deve estar errada
 
