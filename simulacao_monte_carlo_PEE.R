@@ -8,7 +8,7 @@ if(!require(pacman)) install.packages("pacman"); library(pacman)
 p_load(eha, dplyr, maxLik)
 
 ## ajustar o script com as funcoes de sobrevivencia 
-source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
+source('C:/Users/dionisio.neto/Desktop/Dionisio_Neto/Survival_Analysis/PIBIC_Survival_Analysis/funcoes_sobrevivencia_pibic2023.R')
 
 
 ## funcao para calcular o bias%
@@ -20,7 +20,6 @@ bias = function(est.matrix, param.matrix){
 ## ------
 ## Realizacao do experimento
 ## ------
-
 
 set.seed(10)
 ## ajustando a parametrizacao 
@@ -46,7 +45,7 @@ iteracao = 1 ## iniciador do laco while
 matrix.iter = matrix(data = 0, nrow = n.iter, 
                      ncol = length(taxas.falha) + length(potencia) + length(beta))
 
-matrix.var = matrix(data = 0, nrow = n.iter, 
+matrix.ep = matrix(data = 0, nrow = n.iter, 
                     ncol = length(taxas.falha) + length(potencia) + length(beta))
 
 ## codigo para informar o erro e tentar de novo a simulcao
@@ -94,7 +93,7 @@ while (iteracao <= n.iter) {
     matrix.iter[iteracao,length(taxas.falha) + 1] = estimacao.teste.cox$par[length(taxas.falha) +1]
     matrix.iter[iteracao, (length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))] = estimacao.teste.cox$par[(length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))]
     
-    matrix.var[iteracao,] = diag(solve(-estimacao.teste.cox$hessian))
+    matrix.ep[iteracao,] = sqrt(diag(solve(estimacao.teste.cox$hessian)))
     
     iteracao = iteracao + 1
     
@@ -152,7 +151,7 @@ bias(colMeans(matrix.iter[, (length(taxas.falha)+2):(length(taxas.falha)+1+lengt
 ## ------
 
 #*** pergunta: porque deu tudo negativo?
-matrix.var
+matrix.ep
 
 ## ------
 ## criacao do coverage probability
@@ -171,16 +170,28 @@ n.param.est = length(taxas.falha) + length(potencia) + length(beta)
 ## nivel de confianca
 conf.level = 0.95
 
-t.quant = qt(p = (1 - conf.level)/2, df = tamanho.amostral - n.param.est)*-1
+t.quant = qt(p = (1 - conf.level)/2, df = tamanho.amostral - n.param.est)*(-1)
 
-sup.int = matrix.iter[,1:length(taxas.falha)] + (t.quant*(-1)*matrix.var[,1:length(taxas.falha)])
-inf.int = matrix.iter[,1:length(taxas.falha)] - (t.quant*(-1)*matrix.var[,1:length(taxas.falha)])
+sup.int = matrix.iter[,1:length(taxas.falha)] + (t.quant*matrix.ep[,1:length(taxas.falha)])
+inf.int = matrix.iter[,1:length(taxas.falha)] - (t.quant*matrix.ep[,1:length(taxas.falha)])
 
 matrix.taxas.par = matrix(rep(taxas.falha, n.iter), nrow = n.iter, ncol = length(taxas.falha),
        byrow = T)
 
-## porcentagem de capturacao do intervalo de confianca
+## amplitude do intervalo de confianca
+sup.int - inf.int 
+
+## observacao dos 10 primeiros
+sup.int[1:10, 1:3]
+inf.int [1:10 , 1:3]
+
+matrix.taxas.par[1,1:3]
+
+## porcentagem de capturacao do intervalo de confianca para as taxas
 colMeans(matrix.taxas.par >= inf.int & matrix.taxas.par <= sup.int)
+
+
+
 
 ##*** alguma coisa deve estar errada
 
