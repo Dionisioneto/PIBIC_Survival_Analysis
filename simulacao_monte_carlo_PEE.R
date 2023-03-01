@@ -8,7 +8,7 @@ if(!require(pacman)) install.packages("pacman"); library(pacman)
 p_load(eha, dplyr, maxLik)
 
 ## ajustar o script com as funcoes de sobrevivencia 
-source('C:/Users/dionisio.neto/Desktop/Dionisio_Neto/Survival_Analysis/PIBIC_Survival_Analysis/funcoes_sobrevivencia_pibic2023.R')
+source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
 
 
 ## funcao para calcular o bias%
@@ -26,7 +26,7 @@ set.seed(10)
 tamanho.amostral = 600
 
 ## parametros do PPE
-taxas.falha = c(0.2, 0.4, 0.65)
+taxas.falha = c(0.2, 0.4, 0.6)
 particoes = c(0.5, 0.9)
 potencia = 1.4
 
@@ -38,7 +38,7 @@ x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5)
 x.matriz = as.matrix(cbind(x1, x2))
 
 # numero de iteracoes a acontecer
-n.iter = 50
+n.iter = 200
 iteracao = 1 ## iniciador do laco while
 
 ## armazenamento
@@ -116,9 +116,8 @@ while (iteracao <= n.iter) {
   # caso contrario, com os resultados
 }
 
- ## retirando os NA
+## retirando os NA
 iter.error[!is.na(iter.error)]
-
 
 ## ------
 ## Verificacao do real com o predito
@@ -172,6 +171,10 @@ conf.level = 0.95
 
 t.quant = qt(p = (1 - conf.level)/2, df = tamanho.amostral - n.param.est)*(-1)
 
+# ---
+# taxas
+# ---
+
 sup.int = matrix.iter[,1:length(taxas.falha)] + (t.quant*matrix.ep[,1:length(taxas.falha)])
 inf.int = matrix.iter[,1:length(taxas.falha)] - (t.quant*matrix.ep[,1:length(taxas.falha)])
 
@@ -190,8 +193,28 @@ matrix.taxas.par[1,1:3]
 ## porcentagem de capturacao do intervalo de confianca para as taxas
 colMeans(matrix.taxas.par >= inf.int & matrix.taxas.par <= sup.int)
 
+# ---
+# potencia
+# ---
+
+sup.int.pot = matrix.iter[,length(taxas.falha)+1] + (t.quant*matrix.ep[,length(taxas.falha)+1])
+inf.int.pot = matrix.iter[,length(taxas.falha)+1] - (t.quant*matrix.ep[,length(taxas.falha)+1])
+
+## porcentagem de capturacao do intervalo de confianca para o potencia
+mean(potencia <= sup.int.pot & potencia >= inf.int.pot)
+
+# ---
+# lambda
+# ---
+
+sup.int.beta = matrix.iter[,(length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))] + (t.quant*matrix.ep[,(length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))])
+inf.int.beta = matrix.iter[,(length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))] - (t.quant*matrix.ep[,(length(taxas.falha)+2):(length(taxas.falha)+1+length(beta))])
+
+matrix.betas.par = matrix(rep(beta, n.iter), nrow = n.iter, ncol = length(beta),
+                          byrow = T)
+
+## porcentagem de capturacao do intervalo de confianca para as taxas
+colMeans(matrix.betas.par >= inf.int.beta & matrix.betas.par <= sup.int.beta)
 
 
-
-##*** alguma coisa deve estar errada
 
