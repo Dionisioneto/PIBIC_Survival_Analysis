@@ -374,12 +374,12 @@ gen.mepp <- function(n = n, lambda.par, alpha.par, cuts){
   return(values)
 }
 
-## teste
-
-taxas_falha = c(0.8,1,0.2,0.6,0.3,0.6,0.4)
-
-## intervalos de escolha
-intervalos = seq(0.1,4, length = 6)
+# ## teste
+# 
+# taxas_falha = c(0.8,1,0.2,0.6,0.3,0.6,0.4)
+# 
+# ## intervalos de escolha
+# intervalos = seq(0.1,4, length = 6)
 
 
 
@@ -543,7 +543,7 @@ sim.ICdata <- function(n, lambda.param, alpha.param, grid.vector, beta.param, x.
 ## ------
 
 loglik.int = function(par, time.r, time.l,
-                          delta, cuts, x.matrix){
+                          delta, gamma, cuts, x.matrix){
   
   b = length(cuts) +1 ## numero de intervalos
   hazards = par[1:b] ## taxas de falha para os b intervalos
@@ -576,10 +576,53 @@ loglik.int = function(par, time.r, time.l,
   s1.tr.cox = s1.tr^(pred.linear)
   
   
-  log.vero = sum((delta*(s1.tr.cox - s1.tl.cox)) * ((1 - delta)*(s1.tl.cox))) 
+  log.vero = delta(s1.tr^(pred.linear)) +
+    gamma*(s1.tr^(pred.linear) - s1.tr^(pred.linear)) +
+    (1-delta-gamma)*(1 - s1.tl^(pred.linear))
+    
   return(-1*log.vero)
 }
 
+# 
+# tamanho.amostral = 128
+# 
+# ## parametros do PPE
+# taxas.falha = c(0.2, 0.4, 0.8)
+# particoes = c(0.5, 0.9)
+# potencia = 1.4
+# lambda.cen = 0.9
+# 
+# ## pesos das covariaveis
+# 
+# beta = c(0.5, 2.3)
+# x1 = rnorm(n = tamanho.amostral, mean = 0, sd = 1)
+# x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5)
+# x.matriz = as.matrix(cbind(x1, x2))
+# 
+# 
+# 
+# data.int.cen = sim.ICdata(n = tamanho.amostral, lambda.param = taxas.falha,
+#            alpha.param = potencia, grid.vector = particoes,
+#            beta.param = beta , x.matrix = x.matriz,
+#            lambda.cens.param = lambda.cen)
+# 
+# ## criacao da coluna indicadora para a censura a direita
+# delta = ifelse(data.int.cen$R == Inf, 1, 0)
+# 
+# 
+# ## criacao da coluna indicadora para o intervalo
+# gamma = ifelse(data.int.cen$R != Inf & data.int.cen$L != 0, 1, 0)
+# 
+# 
+# estimacao.int.cox = optim(par = chutes,
+#                             fn = loglik.cox,
+#                             gr = NULL,
+#                             hessian = TRUE,
+#                             method = "BFGS",
+#                             tempos = tempo,
+#                             censura = delta,
+#                             intervalos = grid,
+#                             covariaveis = x.matriz)
 
 
 
