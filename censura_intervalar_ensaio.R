@@ -21,13 +21,13 @@ source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023
 ## ------
 
 tamanho.amostral = 600
-lambdas = c(0.3, 0.4, 0.9, 1.2)
+lambdas = c(0.3, 1.2, 0.6, 0.8)
 alpha = 1.3
-grid = c(0.4, 0.6, 1.2)
+grid = c(0.3, 0.8, 1.2)
 
-lambda.cens = 0.75
+lambda.cens = 0.2
 
-
+## funcao geradora de dados para censura intervalar, sem covariaveis
 sim.IC <- function(n, lambda.param, alpha.param, grid.vector, lambda.cens.param){
   
   t <- rexp(0,n) # tempos de falha
@@ -72,9 +72,6 @@ sim.IC <- function(n, lambda.param, alpha.param, grid.vector, lambda.cens.param)
   return(dados)
 }
 
-
-
-
 dados.int = sim.IC(n = tamanho.amostral, lambda.param = lambdas, grid.vector = grid,
                        alpha.param = alpha,
                        lambda.cens.param = lambda.cens)
@@ -116,17 +113,25 @@ loglik.int = function(par, time.r, time.l,
   return(-1*log.vero)
 }
 
-head(dados.int)
-
-
+## escolha dos grids, com tempos observaveis
 grid = time.grid.interval(li = dados.int$L, ri = dados.int$R, 
                           type = "OBS", bmax = length(lambdas))
 
 grid = grid[-c(1, length(grid))]
 
-chutes = c(rep(0.1,length(grid)+1),1.5)
-#chutes = c(0.3, 0.4, 0.9, 1.2, 1.2, 0.5,2.2)
+grid2 = c(0.4, 0.7, 1.1)
 
+## estudo dos grids
+table(cut(dados.int$L,c(0.3, 0.8, 1.2))) ## com os grids parametros reais
+table(cut(dados.int$L,grid)) ## com os grids estimados pela observacao
+table(cut(dados.int$L,grid2)) ## com os grids estimados pela observacao
+
+table(cut(dados.int$R,c(0.3, 0.8, 1.2))) ## com os grids parametros reais
+table(cut(dados.int$R,grid)) ## com os grids estimados pela observacao
+table(cut(dados.int$R,grid2)) ## com os grids estimados pela observacao
+
+
+chutes = c(rep(0.5,length(grid)+1),1.3)
 
 ## Metodo numerico BFGS
 estimacao.intervalar = optim(par = chutes,
@@ -136,8 +141,8 @@ estimacao.intervalar = optim(par = chutes,
                           method = "BFGS",
                           time.l = dados.int$L, 
                           time.r = dados.int$R,
-                          grid = grid,
-                          delta = dados.int$delt)
+                          grid = c(0.3, 0.8, 1.2),
+                          delta = dados.int$delta)
 
 estimacao.intervalar$par
 c(lambdas, alpha)
@@ -159,7 +164,7 @@ x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5) ## Bernoulli, discreta
 x.matriz = as.matrix(cbind(x1, x2))
 betas = c(2.2, 0.5)
 
-lambda.cens = 0.75
+lambda.cens = 1.5
 
 dados.int = sim.ICdata(n = tamanho.amostral, lambda.param = lambdas, grid.vector = grid,
                        alpha.param = alpha, x.matrix = x.matriz, beta.param = betas,
@@ -220,9 +225,7 @@ grid = time.grid.interval(li = dados.int$L, ri = dados.int$R,
 
 grid = grid[-c(1, length(grid))]
 
-chutes = c(rep(0.1,length(grid)+1),1.5,0.1,2)
-#chutes = c(0.3, 0.4, 0.9, 1.2, 1.2, 0.5,2.2)
-
+chutes = c(rep(1,length(grid)+1),1.5,1,2)
 
 ## Metodo numerico BFGS
 estimacao.int.cox = optim(par = chutes,
@@ -236,34 +239,11 @@ estimacao.int.cox = optim(par = chutes,
                           delta = dados.int$delta,
                           x.matrix = cbind(dados.int$x1, dados.int$x2))
 
-estimacao.int.cox$par
-
-
-
-
-
-prop.table(table(dados.int$delta))
-
-
-
-
-
-
-
-
 
 
 ## debug da funcao de log-verossimilhanca
 
 
-loglik.int = function(par, time.r, time.l,
-                      grid,
-                      delta, x.matrix){
-  
-  b = length(grid) + 1 ## numero de intervalos
-  hazards = par[1:b] ## taxas de falha para os b intervalos
-  exp = par[b + 1] ## parametro de potencia
-  
   n.covars = dim(x.matrix)[2] ## numero de covariaveis
   betas = par[(b + 2):(b + 1 + n.covars)]
   
@@ -299,10 +279,8 @@ loglik.int = function(par, time.r, time.l,
   
   like[dados.int$delta==0] = sl
   
-  log.vero = sum(log(like), na.rm = T)
+  log.vero = sum(log(like))
   
-  return(-1*log.vero)
-}
 
 
 
@@ -365,9 +343,7 @@ for (c in seq(0.05,3, 0.05)){
   cat("quantidade de invalidos da loglik", sum(is.na(log(like))), "\n", "\n")
 }
 
-
-
-  ## valores razoaveis para o percentual de censura
+## valores razoaveis para o percentual de censura
 ## c(4, 4.25, 5, 5.25, 5.5)
 ## a partir de 6 ta muito bom
 ## em 8.5 temos zero quantidades de na
@@ -376,56 +352,6 @@ for (c in seq(0.05,3, 0.05)){
 head(dados.int)
 
 
-grid = time.grid.interval(li = dados.int$L, ri = dados.int$R, 
-                          type = "OBS", bmax = length(lambdas))
-
-grid = grid[-c(1, length(grid))]
-
-chutes = c(rep(0.1,length(grid)+1),1.5,0.1,2)
-chutes = c(0.3, 0.4, 0.9, 1.2, 1.2, 0.5,2.2)
-
-
-## Metodo numerico BFGS
-estimacao.int.cox = optim(par = chutes,
-                          fn = loglik.int,
-                          gr = NULL,
-                          hessian = TRUE,
-                          method = "BFGS",
-                          time.l = dados.int$L, 
-                          time.r = dados.int$R,
-                          grid = grid,
-                          delta = dados.int$delta,
-                          x.matrix = cbind(dados.int$x1, dados.int$x2))
-
-
-estimacao.int.cox$par
-
-
-lambdas = c(0.3, 0.4, 0.9, 1.2)
-alpha = 1.2
-betas = c(0.5, 2.2)
-
-
-
-
-
-
-
-
-estimacao.int.cox = optim(par = chutes,
-                          fn = loglik.int,
-                          gr = NULL,
-                          hessian = F,
-                          method = "Nelder-Mead",
-                          time.l = dados.int$L, 
-                          time.r = dados.int$R,
-                          grid = grid,
-                          delta = dados.int$delta,
-                          x.matrix = cbind(dados.int$x1, dados.int$x2))
-
-
-
-
 
 lpowpch_IC <- function(a, l=l, r=r, x.mat=x.mat, grid.vet=grid.vet){
   
@@ -447,209 +373,6 @@ lpowpch_IC <- function(a, l=l, r=r, x.mat=x.mat, grid.vet=grid.vet){
   return(sum(log(lik), na.rm = T))
   
 }
-
-
-estimacao.int.cox2 = optim(par = chutes,
-                           fn = lpowpch_IC,
-                           gr = NULL,
-                           hessian = TRUE,
-                           method = "BFGS",
-                           l = dados.int$L, 
-                           r = dados.int$R,
-                           grid.vet = grid,
-                           x.mat = x.matriz)
-
-
-
-
-
-
-
-
-
-
-
-# ## debug da funcao de verosimilhanca
-# lambdas = c(0.3, 0.9, 1.2, 1.8)
-# alpha = 1.2
-# grid = c(0.8, 1.2, 2.5)
-# 
-# x1 = rnorm(n = tamanho.amostral, mean = 0, sd = 1) ## Normal, continua
-# x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5) ## Bernoulli, discreta
-# x.matriz = as.matrix(cbind(x1, x2))
-# betas = c(0.5, 2.2)
-# 
-# lambda.cens = 0.9
-# 
-# head(dados.int) ## cabecalho dos dados
-# 
-# ## grid observavel
-# grid = time.grid.interval(li = dados.int$L, ri = dados.int$R, 
-#                           type = "OBS", bmax = length(lambdas))
-# 
-# grid = grid[-c(1, length(grid))]
-# 
-# ## verificao da verosimilhanca
-# 
-# ## informacoes exponencial por partes Potencia (PPE) para esquerda
-# s0.tl = PPE(time = dados.int$L[dados.int$delta==1], cuts = grid, levels = lambdas , alpha = alpha, type = "survival")
-# 
-# ## informacoes exponencial por partes Potencia (PPE) para direita
-# s0.tr = PPE(time = dados.int$R[dados.int$delta==1], cuts = grid, levels = lambdas , alpha = alpha, type = "survival")
-# 
-# ## consideracao de riscos proporcionais
-# 
-# sl = s0.tl^(x.matriz[dados.int$delta==1,] %*% betas)
-# 
-# sr = s0.tr^(x.matriz[dados.int$delta==1,] %*% betas)
-# 
-# like = rep(0, dim(x.matriz)[1])
-# 
-# like[dados.int$delta==1] = sl - sr
-# 
-# 
-# 
-# ## informacoes exponencial por partes Potencia (PPE) para esquerda
-# s0.tl = PPE(time = dados.int$L[dados.int$delta==0], cuts = grid, levels = lambdas , alpha = alpha, type = "survival")
-# 
-# sl = s0.tl^(x.matriz[dados.int$delta==0,] %*% betas)
-# 
-# like[dados.int$delta==0] = sl
-# 
-# sum(like)
-# 
-# 
-# summary(s0.tl); summary(s0.tr)
-# 
-# ## contribuicao do evento
-# xbetas =  x.matrix[delta==1,] %*% betas
-# 
-# sl = s0.tl^(xbetas)
-# 
-# sr = s0.tr^(xbetas)
-# 
-# like[delta==1] = (sl - sr)
-# 
-# ## contribuicao da censura
-# s0.tl = PPE(time = dados.int$L[delta==0], cuts = grid, levels = lambdas , alpha = alpha, type = "survival")
-# xbetas =  x.matrix[delta==0,] %*% betas
-# sl = s0.tl^(xbetas)
-# 
-# like[delta==0] = sl
-# 
-# 
-# log.vero = sum(log(like))
-
-
-
-
-lpowpch_IC <- function(a, l=l, r=r, x.mat=x.mat, grid.vet=grid.vet){
-  
-  npar <- length(a)
-  n.int <- length(grid.vet)+1
-  elinpred <- as.numeric(exp(x.mat%*%a[(n.int+2):npar]))
-  n.sample <- nrow(x.mat)
-  cens <- ifelse(is.finite(r), 1, 0)
-  lik <- rep(0, n.sample)
-  
-  lambda <- a[1:n.int]
-  alpha.par <- a[n.int+1]
-  
-  p2 <- (1-(ppch(q=l[cens==1], cuts = grid.vet, levels = lambda )^alpha.par))^(elinpred[cens==1])
-  p1 <- (1-(ppch(q=r[cens==1], cuts = grid.vet, levels = lambda )^alpha.par ))^(elinpred[cens==1])
-  lik[cens==1] <- p2-p1
-  p1 <- (1-(ppch(q=l[cens==0], cuts = grid.vet, levels = lambda )^alpha.par ))^(elinpred[cens==0])
-  lik[cens==0] <- p1
-  return(sum(log(lik), na.rm = T))
-  
-}
-
-
-icenregFit(l = , r = , formulaCov = , distrib = "powpch", n.intervals = length(lambdas), type.int="OBS")
-
-
-
-
-
-# #b = length(part.r ) + 1 ## numero de intervalos
-# hazards = lambdas ## taxas de falha para os b intervalos
-# exp = alpha ## parametro de potencia
-# # 
-# betas = betas
-# # 
-# # ## informacoes exponencial por partes Potencia (PPE) para esquerda
-# s0.tl = PPE(time = dados.int$L[105:125], cuts = part.l, levels = hazards, alpha = exp, type = "survival")
-# # 
-# # ## informacoes exponencial por partes Potencia (PPE) para direita
-# s0.tr = PPE(time = dados.int$R[105:125], cuts = part.r, levels = hazards, alpha = exp, type = "survival")
-# # 
-# # 
-
-
-## verificacao se os parametros foram bem estimados
-lambdas
-estimacao.int.cox$par[1:length(lambdas)]
-
-estimacao.int.cox$par
-
-
-alpha
-estimacao.int.cox$par[length(lambdas)+1]
-
-betas
-estimacao.int.cox$par[(length(lambdas)+2):(length(lambdas)+1+length(betas))]
-
-
-
-lpowpch_IC()
-
-
-chutes = c(rep(1,length(grid)+1),1,0.5,1)
-
-estimacao.int.cox2 = optim(par = chutes,
-                          fn = lpowpch_IC,
-                          gr = NULL,
-                          hessian = TRUE,
-                          method = "BFGS",
-                          l = dados.int$L, 
-                          r = dados.int$R,
-                          grid.vet = grid,
-                          x.mat = x.matriz)
-
-
-estimacao.int.cox2$par
-
-
-# estimacao.int.cox2 = optim(par = chutes,
-#                            fn = lpowpch_IC,
-#                            gr = NULL,
-#                            hessian = F,
-#                            method = "Nelder-Mead",
-#                            l = dados.int$L,
-#                            r = dados.int$R,
-#                            grid.vet = grid,
-#                            x.mat = x.matriz)
-
-
-estimacao.int.cox2$par
-
-
-
-
-
-## Metodo numerico Nelder-Mead
-estimacao.int.cox = optim(par = chutes,
-                            fn = loglik.int,
-                            gr = NULL,
-                            hessian = F,
-                            method = "Nelder-Mead",
-                            time.l = dados.int$L, 
-                            time.r = dados.int$R,
-                            grid.l = grid, 
-                            grid.r = grid,
-                            delta = dados.int$delta,
-                            cuts = grid,
-                            x.matrix = x.matriz)
 
 
 ## ------
