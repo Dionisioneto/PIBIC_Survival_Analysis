@@ -583,46 +583,194 @@ loglik.int = function(par, time.r, time.l,
   return(-1*log.vero)
 }
 
-# 
-# tamanho.amostral = 128
-# 
-# ## parametros do PPE
-# taxas.falha = c(0.2, 0.4, 0.8)
-# particoes = c(0.5, 0.9)
-# potencia = 1.4
-# lambda.cen = 0.9
-# 
-# ## pesos das covariaveis
-# 
-# beta = c(0.5, 2.3)
-# x1 = rnorm(n = tamanho.amostral, mean = 0, sd = 1)
-# x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5)
-# x.matriz = as.matrix(cbind(x1, x2))
-# 
-# 
-# 
-# data.int.cen = sim.ICdata(n = tamanho.amostral, lambda.param = taxas.falha,
-#            alpha.param = potencia, grid.vector = particoes,
-#            beta.param = beta , x.matrix = x.matriz,
-#            lambda.cens.param = lambda.cen)
-# 
-# ## criacao da coluna indicadora para a censura a direita
-# delta = ifelse(data.int.cen$R == Inf, 1, 0)
-# 
-# 
-# ## criacao da coluna indicadora para o intervalo
-# gamma = ifelse(data.int.cen$R != Inf & data.int.cen$L != 0, 1, 0)
-# 
-# 
-# estimacao.int.cox = optim(par = chutes,
-#                             fn = loglik.cox,
-#                             gr = NULL,
-#                             hessian = TRUE,
-#                             method = "BFGS",
-#                             tempos = tempo,
-#                             censura = delta,
-#                             intervalos = grid,
-#                             covariaveis = x.matriz)
+## ------------------------------------------------------------------------------------------------------
+## Funcao que particiona os grids para censura intervalar
+
+time.grid.interval <- function(li=li, ri=ri, type=type, bmax=bmax)
+{  
+  ## Funcao que retorna os intervalos da partiÃƒÂ§ÃƒÂ£o mais fina
+  ## baseada nos limites observados, distintos e finitos.
+  ## Argumentos:
+  ## li: limite inferior dos intervalos observados.
+  ## ri: limite superior dos intervalos observados.
+  ## bmax: numero mÃƒÂ¡ximo de intervalos.
+  
+  # li = dados$L
+  # ri= dados$R
+  
+  #--- Inicio da funcao:
+  
+  #-- Construir uma grade tipo 1: baseando-se em tempos observaveis
+  if(type=="OBS")
+  {
+    #grid.vet <- sort(unique(c(0, li, ri, Inf)))
+    grid.vet <- sort(unique(c(0, li[is.finite(li)], ri[is.finite(ri)], Inf)))
+    grid.size.vet <- length(grid.vet) # Grid time size
+    
+    if( isTRUE(bmax<grid.size.vet)==TRUE )
+    {
+      k        <- round((length(grid.vet)-1)/bmax,0)
+      id.grid  <- round(seq(k,(length(grid.vet)-1), length.out=bmax),0)
+      grid.vet <- c(0,grid.vet[-1][id.grid])
+      return(grid.vet)
+    }else{
+      grid.vet <- sort(unique(c(0, li, ri, Inf)))
+      return(grid.vet)
+    }
+  } #-- Construir uma grade tipo 2: espacos equiprovaveis
+  if(type=="EQUI")
+  {
+    grade.vet <- seq(0, max(ri[ri!=Inf]), length.out=bmax)
+    grid.vet <- c(grade.vet,Inf)
+    return(grid.vet)
+  }  
+}
+
+icenregFit <- function(l=l, r=r, formulaCov=formulaCov, distrib="pch", n.intervals = n.intervals, type.int="OBS"){
+  
+  # l=dados$left/24
+  # r=dados$right/24
+  # formulaCov = ~dados$ther
+  # #grid.vet = grid.time
+  # type.int="OBS"
+  # n.intervals <- 5
+  
+  r <- ifelse(is.na(r), Inf, r)
+  x.mat <- as.matrix(model.matrix(formulaCov)[,-1]) ## problema nesta linha, model.amtrix is not defined
+  n.betas <- ncol(x.mat)
+  #n.intervals <- length(grid.vet)+1
+  grid.vet<- time.grid.interval(li = l, ri = r, type = type.int, bmax = n.intervals)
+  grid.vet <- grid.vet[-c(1, length(grid.vet))]
+  
+  if(distrib=="pch"){
+    
+    n.par <- n.intervals+n.betas
+    
+    ini.info <- rep(1,n.par)
+    #ini.info <- c(rexp(n.intervals),rnorm(n.betas))
+    maxloglik<- optim(par = ini.info, fn=lpch_IC, gr = NULL, method = "BFGS",
+                      control=list(fnscale=-1), hessian = TRUE, l=l, r=r, x.mat=x.mat, grid.vet=grid.vet)
+    # maxloglik<- optim(par = ini.info, fn=lpch_IC, gr = NULL, method = "L-BFGS-B", lower = c(rep(0.01, n.intervals), rep(-10, n.betas)),
+    #                   upper = c(rep(10, n.intervals), rep(10, n.betas)),
+    #                  control=list(fnscale=-1), hessian = TRUE, l=l, r=r, x.mat=x.mat, grid.vet=grid.vet)
+    
+    est <- maxloglik$par
+    #hess <- hessian(func=lpch_IC, x=est)
+    var.cov <- solve(-maxloglik$hessian)
+    ep <- sqrt(diag(var.cov))
+    
+    conf.int <- matrix(NA, ncol=2, nrow=n.par)
+    
+    for( k in 1:n.par){
+      conf.int[k,] <- ic.assintotico(est[k], ep[k])
+    }
+    
+    tab <- round(cbind(c(exp(est[1:(n.intervals+1)]), est[(n.intervals+2):n.par]), ep, exp(conf.int)), 5)
+    
+    colnames(tab) <- c("Est.", "EP", "l.95%", "u.95%")
+    rownames(tab) <- c(paste("loglambda", 1:n.intervals), paste("beta", 1:n.betas) )
+    
+    mllk <- maxloglik$value
+    aic <- (-2*maxloglik$value)+ (2*n.par)
+    bic <- (-2*maxloglik$value)+ (log(length(l))*n.par)
+    aicc <- (-2*maxloglik$value)+ (2*n.par)+(((2*(n.par^2))+ 2*n.par)/(length(l)-n.par-1))
+    crit <- cbind(mllk, aic, aicc, bic)
+    colnames(crit) <- c("mllk","aic", "aicc", "bic")
+    rownames(crit) <- c("crit")
+    
+    back <- list("PCH model for interval censored data"=tab, "Crit"= crit)
+    
+    return(back)
+    
+  }
+  
+  if(distrib=="powpch"){
+    
+    
+    n.par <- n.intervals+1+n.betas
+    #ini.info <- rep(1, n.par)
+    ini.info <- c(1.1, 0.8, 0.5, 0.8, -0.5, 0.5)
+    #ini.info <- c(runif(n.intervals), rep(1, n.betas+1))
+    #ini.info <- c(3.0041660, 2.2255409, 1.6487213, 2.2255409, 0.6065307, 1.6487213)
+    
+    maxloglik<- optim(par = ini.info, fn=lpowpch_IC, gr = NULL, method = "BFGS",
+                      control=list(fnscale=-1), hessian = TRUE, l=l, r=r, x.mat=x.mat, grid.vet=grid.vet)
+    # maxloglik<- optim(par = ini.info, fn=lpowpch_IC, gr = NULL, method = "L-BFGS-B", lower = c(rep(0.01, n.intervals), 0.1, rep(-10, n.betas)),
+    #                   upper = c(rep(10, n.intervals), 3, rep(10, n.betas)),
+    #                   control=list(fnscale=-1), hessian = TRUE, l=l, r=r, x.mat=x.mat, grid.vet=grid.vet)
+    
+    est <- maxloglik$par
+    var.cov <- solve(-maxloglik$hessian)
+    ep <- sqrt(diag(var.cov))
+    
+    conf.int <- matrix(NA, ncol=2, nrow=n.par)
+    
+    for( k in 1:n.par){
+      conf.int[k,] <- ic.assintotico(est[k], ep[k])
+    }
+    
+    #tab <- round(cbind(c(exp(est[1:(n.intervals)]), est[(n.intervals+1):n.par]), ep, rbind(exp(conf.int[1:(n.intervals),]),conf.int[(n.intervals+1):n.par,] )  ), 5)
+    tab <- round(cbind(est, ep, conf.int), 5)
+    colnames(tab) <- c("Est.", "EP", "l.95%", "u.95%")
+    rownames(tab) <- c(paste("lambda", 1:n.intervals), "alpha", paste("beta", 1:n.betas) )
+    
+    mllk <- maxloglik$value
+    aic <- (-2*maxloglik$value)+ (2*n.par)
+    bic <- (-2*maxloglik$value)+ (log(length(l))*n.par)
+    aicc <- (-2*maxloglik$value)+ (2*n.par)+(((2*(n.par^2))+ 2*n.par)/(length(l)-n.par-1))
+    crit <- cbind(mllk, aic, aicc, bic)
+    colnames(crit) <- c("mllk","aic", "aicc", "bic")
+    rownames(crit) <- c("crit")
+    
+    back <- list("Power PCH model for interval censored data"=tab, "Crit"= crit)
+    
+    return(back)
+    
+  }
+  
+  
+}
+
+
+
+
+lpowpch_IC <- function(a, l=l, r=r, x.mat=x.mat, grid.vet=grid.vet){
+
+  npar <- length(a)
+  n.int <- length(grid.vet)+1
+  elinpred <- as.numeric(exp(x.mat%*%a[(n.int+2):npar]))
+  n.sample <- nrow(x.mat)
+  cens <- ifelse(is.finite(r), 1, 0)
+  lik <- rep(0, n.sample)
+  
+  lambda <- a[1:n.int]
+  alpha.par <- a[n.int+1]
+  
+  p2 <- (1-(ppch(q=l[cens==1], cuts = grid.vet, levels = lambda )^alpha.par))^(elinpred[cens==1])
+  p1 <- (1-(ppch(q=r[cens==1], cuts = grid.vet, levels = lambda )^alpha.par ))^(elinpred[cens==1])
+  lik[cens==1] <- p2-p1
+  p1 <- (1-(ppch(q=l[cens==0], cuts = grid.vet, levels = lambda )^alpha.par ))^(elinpred[cens==0])
+  lik[cens==0] <- p1
+  return(sum(log(lik)))
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
