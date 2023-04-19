@@ -154,19 +154,20 @@ c(lambdas, alpha)
 ## com covariaveis
 ## ------
 
-tamanho.amostral = 600
-lambdas = c(0.3, 0.4, 0.9, 1.2)
-alpha = 1.4
-grid = c(0.4, 0.6, 1.2)
+set.seed(10)
+tamanho.amostral = 3000
+lambdas = c(1.3, 0.9, 1.2, 1.2)
+alpha = 1.7
+particoes = c(0.3, 0.6, 0.9)
 
 x1 = rnorm(n = tamanho.amostral, mean = 0, sd = 1) ## Normal, continua
 x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5) ## Bernoulli, discreta
 x.matriz = as.matrix(cbind(x1, x2))
 betas = c(2.2, 0.5)
 
-lambda.cens = 0.9
+lambda.cens = 0.25
 
-dados.int = sim.ICdata(n = tamanho.amostral, lambda.param = lambdas, grid.vector = grid,
+dados.int = sim.ICdata(n = tamanho.amostral, lambda.param = lambdas, grid.vector = particoes,
                        alpha.param = alpha, x.matrix = x.matriz, beta.param = betas,
                        lambda.cens.param = lambda.cens)
 
@@ -200,15 +201,15 @@ loglik.int = function(par, time.r, time.l,
   
   ## contribuicao do evento
   
-  sl = s0.tl^exp((x.matrix[delta==1,] %*% betas))
+  sl = s0.tl^(exp(x.matrix[delta==1,] %*% betas))
   
-  sr = s0.tr^exp((x.matrix[delta==1,] %*% betas))
+  sr = s0.tr^(exp(x.matrix[delta==1,] %*% betas))
   
   like[delta==1] = (sl - sr)
   
   ## contribuicao da censura
   s0.tl = PPE(time = time.l[delta==0], cuts = grid, levels = hazards, alpha = exp, type = "survival")
-  sl = s0.tl^exp((x.matrix[delta==0,] %*% betas))
+  sl = s0.tl^(exp(x.matrix[delta==0,] %*% betas))
   
   like[delta==0] = sl
   
@@ -225,7 +226,7 @@ grid = time.grid.interval(li = dados.int$L, ri = dados.int$R,
 
 grid = grid[-c(1, length(grid))]
 
-chutes = c(rep(1,length(grid)+1),1.5,1,2)
+chutes = c(rep(1,length(grid)+1),1, 1, 0.8)
 
 ## Metodo numerico BFGS
 estimacao.int.cox = optim(par = chutes,
@@ -235,136 +236,67 @@ estimacao.int.cox = optim(par = chutes,
                           method = "BFGS",
                           time.l = dados.int$L, 
                           time.r = dados.int$R,
-                          grid = grid,
+                          grid = grid ,
                           delta = dados.int$delta,
                           x.matrix = cbind(dados.int$x1, dados.int$x2))
 
 estimacao.int.cox$par
 c(lambdas, alpha, betas)
 
-## debug da funcao de log-verossimilhanca
-
-tamanho.amostral = 600
-hazards = c(0.3, 0.4, 0.9, 1.2)
-exp = 1.2
-grid = c(0.3, 0.8, 1.2)
-
-betas = c(0.2, 1.5)
-x1 = rnorm(n = tamanho.amostral, mean = 0, sd = 1) ## Normal, continua
-x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5) ## Bernoulli, discreta
-x.matriz = as.matrix(cbind(x1, x2))
-
-
-lambda.cens = 0.2
-
-dados.int = sim.ICdata(n = tamanho.amostral, lambda.param = hazards, grid.vector = grid,
-                       alpha.param = exp, x.matrix = x.matriz, beta.param = betas,
-                       lambda.cens.param = lambda.cens)
-
-
-  
-grid = time.grid.interval(li = dados.int$L, ri = dados.int$R, 
-                            type = "OBS", bmax = length(lambdas))
-grid = grid[-c(1, length(grid))]
-  
-## informacoes exponencial por partes Potencia (PPE) para esquerda
-s0.tl = PPE(time = dados.int$L[dados.int$delta==1], cuts = grid, levels = hazards, alpha = exp, type = "survival")
-  
-## informacoes exponencial por partes Potencia (PPE) para direita
-s0.tr = PPE(time = dados.int$R[dados.int$delta==1], cuts = grid, levels = hazards, alpha = exp, type = "survival")
-  
-  
-## contribuicao do evento
-x.matrix = cbind(dados.int$x1, dados.int$x2)
-  
-xbetas = x.matrix[dados.int$delta==1,] %*% betas
-  
-sl = s0.tl^(xbetas)
-  
-sr = s0.tr^(xbetas)
-  
-like = rep(0, dim(x.matrix)[1]) ## valores para a verossimilhances
-  
-like[dados.int$delta==1] = (sl - sr)
-  
-## contribuicao da censura
-xbetas = x.matrix[dados.int$delta==0,] %*% betas
-  
-s0.tl = PPE(time = dados.int$L[dados.int$delta==0], cuts = grid, levels = hazards, alpha = exp, type = "survival")
-sl = s0.tl^(x.matrix[dados.int$delta==0,] %*% betas)
-  
-like[dados.int$delta==0] = sl
-  
-log.vero = sum(log(like))
-
-xbetas[100:110]
-sl[100:110]
-sr[100:110]
-
-sl[100:110] - sr[100:110]
-
-
-
-
-for (c in seq(0.05,3, 0.05)){
-  cat("lambda cens", c, "\n")
-  
-  tamanho.amostral = 500
-  lambdas = c(0.3, 0.6, 0.9, 1.2)
-  alpha = 1.2
-  grid = c(0.4, 0.6, 1.2)
-  
-  x1 = rnorm(n = tamanho.amostral, mean = 0, sd = 1) ## Normal, continua
-  x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5) ## Bernoulli, discreta
-  x.matriz = as.matrix(cbind(x1, x2))
-  betas = c(1.5, 0.5)
-  
-  lambda.cens = c
-  
-  dados.int = sim.ICdata(n = tamanho.amostral, lambda.param = lambdas, grid.vector = grid,
-                         alpha.param = alpha, x.matrix = x.matriz, beta.param = betas,
-                         lambda.cens.param = lambda.cens)
-  
-  print(prop.table(table(dados.int$delta)))
-  
-  grid = time.grid.interval(li = dados.int$L, ri = dados.int$R, 
-                            type = "OBS", bmax = length(lambdas))
-  grid = grid[-c(1, length(grid))]
-  
-  ## informacoes exponencial por partes Potencia (PPE) para esquerda
-  s0.tl = PPE(time = dados.int$L[dados.int$delta==1], cuts = grid, levels = hazards, alpha = exp, type = "survival")
-  
-  ## informacoes exponencial por partes Potencia (PPE) para direita
-  s0.tr = PPE(time = dados.int$R[dados.int$delta==1], cuts = grid, levels = hazards, alpha = exp, type = "survival")
-  
-  
-  ## contribuicao do evento
-  x.matrix = cbind(dados.int$x1, dados.int$x2)
-  
-  sl = s0.tl^(x.matrix[dados.int$delta==1,] %*% betas)
-  
-  sr = s0.tr^(x.matrix[dados.int$delta==1,] %*% betas)
-  
-  like = rep(0, dim(x.matrix)[1]) ## valores para a verossimilhances
-  
-  like[dados.int$delta==1] = (sl - sr)
-  
-  ## contribuicao da censura
-  s0.tl = PPE(time = dados.int$L[dados.int$delta==0], cuts = grid, levels = hazards, alpha = exp, type = "survival")
-  sl = s0.tl^(x.matrix[dados.int$delta==0,] %*% betas)
-  
-  like[dados.int$delta==0] = sl
-  
-  log.vero = sum(log(like), na.rm = T)
-  
-  cat("quantidade de validos da loglik", length(log(like))-sum(is.na(log(like))), "\n")
-  cat("quantidade de invalidos da loglik", sum(is.na(log(like))), "\n", "\n")
-}
-
-## valores razoaveis para o percentual de censura
-## c(4, 4.25, 5, 5.25, 5.5)
-## a partir de 6 ta muito bom
-## em 8.5 temos zero quantidades de na
+# ## debug da funcao de log-verossimilhanca
+# 
+# tamanho.amostral = 600
+# hazards = c(0.3, 0.4, 0.9, 1.2)
+# exp = 1.2
+# grid = c(0.3, 0.8, 1.2)
+# 
+# betas = c(0.2, 1.5)
+# x1 = rnorm(n = tamanho.amostral, mean = 0, sd = 1) ## Normal, continua
+# x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5) ## Bernoulli, discreta
+# x.matriz = as.matrix(cbind(x1, x2))
+# 
+# 
+# lambda.cens = 0.2
+# 
+# dados.int = sim.ICdata(n = tamanho.amostral, lambda.param = hazards, grid.vector = grid,
+#                        alpha.param = exp, x.matrix = x.matriz, beta.param = betas,
+#                        lambda.cens.param = lambda.cens)
+# 
+# 
+#   
+# grid = time.grid.interval(li = dados.int$L, ri = dados.int$R, 
+#                             type = "OBS", bmax = length(lambdas))
+# grid = grid[-c(1, length(grid))]
+#   
+# ## informacoes exponencial por partes Potencia (PPE) para esquerda
+# s0.tl = PPE(time = dados.int$L[dados.int$delta==1], cuts = grid, levels = hazards, alpha = exp, type = "survival")
+#   
+# ## informacoes exponencial por partes Potencia (PPE) para direita
+# s0.tr = PPE(time = dados.int$R[dados.int$delta==1], cuts = grid, levels = hazards, alpha = exp, type = "survival")
+#   
+#   
+# ## contribuicao do evento
+# x.matrix = cbind(dados.int$x1, dados.int$x2)
+#   
+# xbetas = x.matrix[dados.int$delta==1,] %*% betas
+#   
+# sl = s0.tl^(xbetas)
+#   
+# sr = s0.tr^(xbetas)
+#   
+# like = rep(0, dim(x.matrix)[1]) ## valores para a verossimilhances
+#   
+# like[dados.int$delta==1] = (sl - sr)
+#   
+# ## contribuicao da censura
+# xbetas = x.matrix[dados.int$delta==0,] %*% betas
+#   
+# s0.tl = PPE(time = dados.int$L[dados.int$delta==0], cuts = grid, levels = hazards, alpha = exp, type = "survival")
+# sl = s0.tl^(x.matrix[dados.int$delta==0,] %*% betas)
+#   
+# like[dados.int$delta==0] = sl
+#   
+# log.vero = sum(log(like))
 
 
 head(dados.int)
@@ -428,86 +360,3 @@ sr = s0.tr^(exp(x.matriz %*% betas))
 loglik = sum(((1 - B) * log(1 - pi)) + (B * log(pi)) + (1 - B)*((delta)*(sl - sr) + (1 - delta)*(sl - sr)))
 
 
-
-# 
-# tamanho.amostral = 128
-# 
-# ## parametros do PPE
-# taxas.falha = c(0.2, 0.4, 0.8)
-# particoes = c(0.5, 0.9)
-# potencia = 1.4
-# lambda.cen = 0.9
-# 
-# ## pesos das covariaveis
-# 
-# beta = c(0.5, 2.3)
-# x1 = rnorm(n = tamanho.amostral, mean = 0, sd = 1)
-# x2 = rbinom(n = tamanho.amostral, size = 1, prob = 0.5)
-# x.matriz = as.matrix(cbind(x1, x2))
-# 
-# 
-# 
-# data.int.cen = sim.ICdata(n = tamanho.amostral, lambda.param = taxas.falha,
-#            alpha.param = potencia, grid.vector = particoes,
-#            beta.param = beta , x.matrix = x.matriz,
-#            lambda.cens.param = lambda.cen)
-# 
-# ## criacao da coluna indicadora para a censura a direita
-# delta = ifelse(data.int.cen$R == Inf, 1, 0)
-# 
-# 
-# ## criacao da coluna indicadora para o intervalo
-# gamma = ifelse(data.int.cen$R != Inf & data.int.cen$L != 0, 1, 0)
-# 
-# 
-# estimacao.int.cox = optim(par = chutes,
-#                             fn = loglik.cox,
-#                             gr = NULL,
-#                             hessian = TRUE,
-#                             method = "BFGS",
-#                             tempos = tempo,
-#                             censura = delta,
-#                             intervalos = grid,
-#                             covariaveis = x.matriz)
-
-
-
-
-# loglik.int = function(par, time.r, time.l,
-#                       delta, alpha, cuts, x.matrix){
-#   
-#   b = length(cuts) +1 ## numero de intervalos
-#   hazards = par[1:b] ## taxas de falha para os b intervalos
-#   exp = par[b + 1] ## parametro de potencia
-#   
-#   n.covars = dim(x.matrix)[2] ## numero de covariaveis
-#   betas = par[(b + 2): (b + 1 + n.covars)]
-#   
-#   ## informacoes exponencial por partes (PE) para esquerda
-#   F0.tl = ppch(q = time.l, cuts = cuts, levels = hazards)
-#   
-#   ## informacoes exponencial por partes Potencia (PPE) para esquerda
-#   F1.tl = (F0.tl)^exp
-#   
-#   s1.tl = 1 - F1.tl
-#   
-#   ## informacoes exponencial por partes (PE) para direita
-#   F0.tr = ppch(q = time.r, cuts = cuts, levels = hazards)
-#   
-#   ## informacoes exponencial por partes Potencia (PPE) para direita
-#   F1.tr = (F0.tr)^exp
-#   
-#   s1.tr = 1 - F1.tr
-#   
-#   ## contribuicao das covariaveis
-#   pred.linear =  x.matrix %*% betas 
-#   
-#   sl = s1.tl^(pred.linear)
-#   
-#   sr = s1.tr^(pred.linear)
-#   
-#   
-#   log.vero = sum(delta*(sl - sr) + (1-delta)*(sl))
-#   
-#   return(-1*log.vero)
-# }
