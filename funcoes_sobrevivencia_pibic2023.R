@@ -755,8 +755,15 @@ lpowpch_IC <- function(a, l=l, r=r, x.mat=x.mat, grid.vet=grid.vet){
 
 }
 
+## ---
+## Medidas de desempenho no método monte carlo
+## ---
 
-
+## funcao para calcular o bias%
+bias = function(est.matrix, param.matrix){
+  bias.calculation = ((est.matrix - param.matrix)/param.matrix)
+  return(colMeans(bias.calculation)*100)
+}
 
 
 

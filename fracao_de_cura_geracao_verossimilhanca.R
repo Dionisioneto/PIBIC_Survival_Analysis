@@ -36,7 +36,7 @@ logistic = function(betas, x.matrix){
 }
 
 ## intercepto, bernoulli, normal 
-betas.par = c(2.3,-0.5, 1.5)
+betas.par = c(2.3,-0.5, 0)
 
 X1 = rbinom(n = n.sample, size = 1, prob = 0.5)
 X2 = rnorm(n = n.sample, mean = 0, sd = 1)
@@ -51,17 +51,12 @@ prob.logistic[100:107]
 
 Y = rbinom(n = n.sample, size = 1, prob = prob.logistic)
 
-Y[100:107]
-
-## verificando o ajuste logistico
-model.logistic.fit = glm(Y~x.matriz, family = "binomial")
-summary(model.logistic.fit)
-
 
 ## geracao dos vetores (L, R, delta)
 
 
-geracao.dados.fc = function(n.size, var.ber, mean.exp, x.matrix, betas){
+geracao.dados.fc = function(n.size, var.ber, mean.exp, x.matrix, betas,
+                            plato = 0.1){
   if(var.ber == 0){
     t = rexp(n =n.size, rate = 1/mean.exp) ## t  = C
     delta = rep(0, n.sample)               ## delta = 0
@@ -79,18 +74,20 @@ geracao.dados.fc = function(n.size, var.ber, mean.exp, x.matrix, betas){
   }
   else{
     m = n.size - length(delta == 0)
-    Q = runif(n = m, min = 0.1, max = 0.5)
+    Q = runif(n = m, min = plato, max = 1)
     L = sum(Q[-c(length(m))])
     R = sum(Q)
     }
   return(L, R, delta) 
   }
 
-  geracao.dados.fc(n.size = n.sample, var.ber = Y[1], mean.exp = 10,
-                   x.matrix = x.matriz[1,], betas = betas.par[2:length(betas.par)])
+geracao.dados.fc(n.size = n.sample, var.ber = Y[1], mean.exp = 10,
+                  x.matrix = x.matriz[1,], betas = betas.par[2:length(betas.par)])
 
+n = tamanho.amostral, lambda.param = lambdas, grid.vector = grid,
+alpha.param = alpha, x.matrix = x.matriz, beta.param = betas,
+lambda.cens.param = lambda.cens
 
-Y == 0
 
 
 
