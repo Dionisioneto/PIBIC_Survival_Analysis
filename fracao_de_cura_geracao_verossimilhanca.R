@@ -84,10 +84,6 @@ geracao.dados.fc = function(n.size, var.ber, mean.exp, x.matrix, betas,
 geracao.dados.fc(n.size = n.sample, var.ber = Y[1], mean.exp = 10,
                   x.matrix = x.matriz[1,], betas = betas.par[2:length(betas.par)])
 
-n = tamanho.amostral, lambda.param = lambdas, grid.vector = grid,
-alpha.param = alpha, x.matrix = x.matriz, beta.param = betas,
-lambda.cens.param = lambda.cens
-
 
 
 
