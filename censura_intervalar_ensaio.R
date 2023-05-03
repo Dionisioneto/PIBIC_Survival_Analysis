@@ -13,7 +13,7 @@
 if(!require(pacman)) install.packages("pacman"); library(pacman)
 p_load(eha)
 
-source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
+source('C:/Users/Labest I/Desktop/PIBIC_Survival_Analysis/funcoes_sobrevivencia_pibic2023.R')
 
 ## ------
 ## Funcao geradora de dados para censura intervalar

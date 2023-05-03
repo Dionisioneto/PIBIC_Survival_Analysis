@@ -13,7 +13,7 @@
 source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
 
 if(!require(pacman)) install.packages("pacman"); library(pacman)
-p_load(survival)
+p_load(survival, ReIns)
 
 ## ------
 ## Funcao geradora de dados para censura intervalar e fracao de cura,
@@ -122,6 +122,17 @@ km = survfit(dados.cens~1)
 
 plot(km)
 
+## -----
+## Estudo da curva de sobrevivencia pelo estimador de
+## Turnbull
+## -----
+
+tempo.aval = seq(0,12,0.1)
+trnb.fit = Turnbull(x = tempo.aval, L = dados$L, R = dados$R,
+                    censored = dados$delta)
+
+plot(tempo.aval, trnb.fit$surv, type = "s", 
+     ylab = "Estimador de Turnbull para S(t)")
 
 ## ------
 ## Funcao geradora de dados para censura intervalar e fracao de cura,
@@ -199,7 +210,7 @@ sim.cure.icen.mepp = function(N, prob.ber, betas.cure, betas.risk,
 
 
 dados = sim.cure.icen.mepp(N = 100, prob.ber = 0.5, betas.cure = c(1.2,0.5,1.2),
-                      betas.risk = c(0.5,0.3), c1 = 4, c2 = 7,
+                      betas.risk = c(0.5,0.3), c1 = 12, c2 = 17,
                       lambdas = c(0.6, 0.8, 0.9), grid = c(0.3,0.6), alpha = 1.4)
 
 head(dados)
@@ -210,10 +221,17 @@ km = survfit(dados.cens~1)
 plot(km)
 
 
-## funcao de maxima verossimilhanca
+## -----
+## Estudo da curva de sobrevivencia pelo estimador de
+## Turnbull
+## -----
 
+tempo.aval = seq(0,12,0.1)
+trnb.fit = Turnbull(x = tempo.aval, L = dados$L, R = dados$R,
+                    censored = dados$delta)
 
-
+plot(tempo.aval, trnb.fit$surv, type = "s", 
+     ylab = "Estimador de Turnbull para S(t)")
 
 
 ## ------
@@ -300,6 +318,9 @@ estimacao.intervalar = optim(par = chutes,
                              grid = grid.obs,
                              delta = dados$delta,
                              x.matriz = cbind(1,dados$X1, dados$X2))
+
+
+
 
 estimacao.intervalar = optim(par = chutes,
                              fn = loglik.int.fc,
