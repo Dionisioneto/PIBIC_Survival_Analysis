@@ -136,7 +136,7 @@ plot(tempo.aval, trnb.fit$surv, type = "s",
 
 ## ------
 ## Funcao geradora de dados para censura intervalar e fracao de cura,
-## com covariaveis: Versao do Modelo Exponencial por Partes.
+## com covariaveis: Versao do Modelo Exponencial por Partes potencia.
 ## ------
 
 sim.cure.icen.mepp = function(N, prob.ber, betas.cure, betas.risk,
@@ -156,7 +156,7 @@ sim.cure.icen.mepp = function(N, prob.ber, betas.cure, betas.risk,
   
   b = betas.cure
   
-  z = b[1] + b[2]*x1 + b[3]*x2
+  z = matriz %*% b
   
   prob.z = 1/(1+exp(-z))
   
@@ -241,18 +241,19 @@ plot(tempo.aval, trnb.fit$surv, type = "s",
 spop.mepp = function(time, cuts, levels, alpha, cure.matrix, risk.matrix,
                      betas.cure, betas.risk){
   
-  pi = exp(cure.matrix %*% betas.cure)/(1+exp(cure.matrix %*% betas.cure))
+  st = as.numeric(PPE(time = time, cuts = cuts, 
+            levels = levels, alpha = alpha, type = "survival"))
   
-  st = PPE(time = time, cuts = cuts, 
-            levels = levels, alpha = alpha, type = "survival")
+  stcox = as.numeric(st^(exp(risk.matrix %*% betas.risk)))
   
-  stcox = st^(exp(risk.matrix %*% betas.risk))
+  xb = as.numeric(exp(cure.matrix %*% betas.cure))
+    
+  pi = 1/(1+exp(-xb))
   
   spop = pi + ((1-pi)*stcox)
   
   return(spop)
 }
-
 
 # spop.mepp(time = dados$time, cuts = grid, levels = taxas.de.falha, alpha = potencia,
 #           cure.matrix = as.matrix(cbind(1,dados$X1, dados$X2)),
@@ -260,15 +261,17 @@ spop.mepp = function(time, cuts, levels, alpha, cure.matrix, risk.matrix,
 #           betas.cure = c(1, 0.3,0.6), betas.risk = c(-0.5,1.2))
 
 
-sl = spop.mepp(time = dados$L, cuts = grid, levels = taxas.de.falha, alpha = potencia,
-          cure.matrix = as.matrix(cbind(1,dados$X1, dados$X2)),
-          risk.matrix = as.matrix(cbind(dados$X1, dados$X2)),
-          betas.cure = c(1, 0.3,0.6), betas.risk = c(-0.5,1.2))
+sl = spop.mepp(time = dados$L, cuts = c(0.3,0.6), levels = c(0.6, 0.8, 0.9),
+               alpha = 1.4,
+              cure.matrix = as.matrix(cbind(1,dados$X1, dados$X2)),
+              risk.matrix = as.matrix(cbind(dados$X1, dados$X2)),
+              betas.cure = c(1, 0.3,0.6), betas.risk = c(-0.5,1.2))
 
-sr = spop.mepp(time = dados$R, cuts = grid, levels = taxas.de.falha, alpha = potencia,
-               cure.matrix = as.matrix(cbind(1,dados$X1, dados$X2)),
-               risk.matrix = as.matrix(cbind(dados$X1, dados$X2)),
-               betas.cure = c(1, 0.3,0.6), betas.risk = c(-0.5,1.2))
+sr = spop.mepp(time = dados$R, cuts = c(0.3,0.6), levels = c(0.6, 0.8, 0.9),
+              alpha = 1.4,
+              cure.matrix = as.matrix(cbind(1,dados$X1, dados$X2)),
+              risk.matrix = as.matrix(cbind(dados$X1, dados$X2)),
+              betas.cure = c(1, 0.3,0.6), betas.risk = c(-0.5,1.2))
 
 ## ------
 ## Funcao de verosimilhanca para censura intervalar e fracao de cura,
@@ -278,6 +281,7 @@ sr = spop.mepp(time = dados$R, cuts = grid, levels = taxas.de.falha, alpha = pot
 
 loglik.int.fc = function(par, time.l, time.r,
                          grid, delta, cure.matrix, risk.matrix){
+  
 
   b = length(grid) + 1 ## numero de intervalos
   hazards = par[1:b] ## taxas de falha para os b intervalos
@@ -287,7 +291,9 @@ loglik.int.fc = function(par, time.l, time.r,
   n.covars.risk = dim(risk.matrix)[2] ## numero de covariaveis com fracao de risco
   
   betas.cure = par[(b + 2):(b + 1 + n.covars.cure )]
-  betas.risk = par[(b + 2 + n.covars.cure):(b + 1 + n.covars.cure +  n.covars.risk)]
+  betas.risk = par[(b + 2 + n.covars.cure):(b + 1 +  n.covars.cure+ n.covars.risk)]
+  
+  lik <- rep(0, dim(cure.matrix)[1])
   
   ## informacoes exponencial por partes Potencia (PPE), sob fracao de cura, para esquerda.
   sl =  spop.mepp(time = time.l[delta==1], cuts = grid, levels = hazards, alpha = alpha,
@@ -303,7 +309,7 @@ loglik.int.fc = function(par, time.l, time.r,
   
   ## contribuicao das covariaveis
 
-  p1 = log(sl-sr)
+  lik[delta==1] = sl-sr
   
   ## contribuicao da censura
   sl =  spop.mepp(time = time.l[delta==0], cuts = grid, levels = hazards, alpha = alpha,
@@ -311,11 +317,11 @@ loglik.int.fc = function(par, time.l, time.r,
                     risk.matrix = risk.matrix[delta==0,],
                     betas.cure = betas.cure, betas.risk = betas.risk)
    
-  p2 = log(sl)
+  lik[delta==0] = sl
  
-  log.vero = sum(p1,p2)
+  log.vero = sum(log(lik))
 
- return(-1*log.vero)
+ return(log.vero)
 
 }
 
@@ -343,14 +349,14 @@ chutes = c(rep(0.1,length(grid)+1),1, 1, 0.1, 0.1, 0.1, 0.1)
 
 
 ## Metodo numerico BFGS
-estimacao.intervalar = optim(par = chutes,
+estimacao.intervalar = optim(par = parametros,
                              fn = loglik.int.fc,
                              gr = NULL,
                              hessian = TRUE,
                              method = "BFGS",
                              time.l =  dados$L, 
                              time.r = dados$R,
-                             grid = grid.obs,
+                             grid = particoes,
                              delta = dados$delta,
                              cure.matrix = cbind(1,dados$X1, dados$X2),
                              risk.matrix = cbind(dados$X1, dados$X2))
@@ -372,300 +378,122 @@ estimacao.intervalar2$par
 parametros
 
 
-## Debug da funcao de verossimilhanca
 
 
+## -----
+## versao 2
+## -----
 
-## calculo da populacao curada
-
-time.l =  dados$L 
-time.r = dados$R
-grid = grid.obs
-delta = dados$delta
-x.matriz = cbind(1,dados$X1, dados$X2)
-betas.cure = betas.cura
-betas.risk = betas.risco
-
-b = length(grid) + 1
-parametros[1:b]
-parametros[b+1]
-parametros[(b + 2):(b + 1 + n.covars)]
-parametros[(b + 5):(b + 4 + n.covars - 1)]
-
-hazards = taxas.de.falha
-exp = potencia
-grid = particoes
-
-pi = exp(x.matriz %*% betas.cure)/(1 + exp(x.matriz %*% betas.cure))
-
-## calculo da populacao nao-curada
-
-## informacoes exponencial por partes Potencia (PPE) para esquerda
-s0.tl = PPE(time = time.l[delta==1], cuts = grid, levels = hazards, alpha = exp, type = "survival")
-
-## informacoes exponencial por partes Potencia (PPE) para direita
-s0.tr = PPE(time = time.r[delta==1], cuts = grid, levels = hazards, alpha = exp, type = "survival")
-
-## contribuicao das covariaveis
-
-sl = s0.tl^exp((x.matriz[delta==1,-1] %*% betas.risk))
-
-sr = s0.tr^exp((x.matriz[delta==1,-1] %*% betas.risk))
-
-p1 = ((1-pi)[delta==1])*(sl - sr)
-
-## contribuicao da censura
-s0.tl = PPE(time = time.l[delta==0], cuts = grid, levels = hazards, alpha = exp, type = "survival")
-sl = s0.tl^exp((x.matriz[delta==0,-1] %*% betas.risk))
-
-p2 = (pi[delta==0] + (((1-pi)[delta==0])*sl))
-
-log.vero = log(sum(p1,p2))
-
-return(-1*log.vero)
-
-
-## loglik2
-
-loglik.int.fc2 = function(par, time.l, time.r,
-                         grid, Yi, x.matriz){
+spop.mepp = function(time, cuts, levels, alpha, cure.matrix, risk.matrix,
+                     betas.cure, betas.risk){
   
-  b = length(grid) + 1 ## numero de intervalos
-  hazards = par[1:b] ## taxas de falha para os b intervalos
-  exp = par[b + 1] ## parametro de potencia
+  st = as.numeric(PPE(time = time, cuts = cuts, 
+                      levels = levels, alpha = alpha, type = "survival"))
   
-  n.covars = dim(x.matriz)[2] ## numero de covariaveis com fracao de cura, para risco tiramos um (beta0)
-  betas.cure = par[(b + 2):(b + 1 + n.covars)]
-  betas.risk = par[(b + 5):(b + 4 + n.covars - 1)]
+  stcox = as.numeric(st^(exp(risk.matrix %*% betas.risk)))
   
-  ## calculo da populacao curada
+  xb = as.numeric(exp(cure.matrix %*% betas.cure))
   
-  pi = exp(x.matriz %*% betas.cure)/(1 + exp(x.matriz %*% betas.cure))
+  pi = 1/(1+exp(-xb))
   
-  ## calculo da populacao nao-curada
+  spop = pi + ((1-pi)*stcox)
   
-  ## informacoes exponencial por partes Potencia (PPE) para esquerda
-  s0.tl = PPE(time = time.l, cuts = grid, levels = hazards, alpha = exp, type = "survival")
-  
-  ## informacoes exponencial por partes Potencia (PPE) para direita
-  s0.tr = PPE(time = time.r, cuts = grid, levels = hazards, alpha = exp, type = "survival")
-  
-  ## contribuicao das covariaveis
-  
-  sl = s0.tl^exp((x.matriz[,-1] %*% betas.risk))
-  
-  sr = s0.tr^exp((x.matriz[,-1] %*% betas.risk))
-  
-  p1 = Yi*(log(pi) + log(sl-sr))
-  p2 = (1-Yi)*log(1-pi)
+  return(spop)
+}
 
-  log.vero = sum(p1,p2)
+sl = spop.mepp(time = dados$L, cuts = c(0.3,0.6), levels = c(0.6, 0.8, 0.9),
+               alpha = 1.4,
+               cure.matrix = as.matrix(cbind(1,dados$X1, dados$X2)),
+               risk.matrix = as.matrix(cbind(dados$X1, dados$X2)),
+               betas.cure = c(1, 0.3,0.6), betas.risk = c(-0.5,1.2))
+
+sr = spop.mepp(time = dados$R, cuts = c(0.3,0.6), levels = c(0.6, 0.8, 0.9),
+               alpha = 1.4,
+               cure.matrix = as.matrix(cbind(1,dados$X1, dados$X2)),
+               risk.matrix = as.matrix(cbind(dados$X1, dados$X2)),
+               betas.cure = c(1, 0.3,0.6), betas.risk = c(-0.5,1.2))
+
+
+## funcao log-verossimilhanca
+
+loglikIC <- function(a, l=l, r=r, x.cure=x.cure, x.risk=x.risk, grid.vet=grid.vet){
   
-  return(-1*log.vero)
+  npar <- length(a)
+  
+  b <- length(grid.vet)+1
+  
+  hazards = a[1:b] ## taxas de falha para os b intervalos
+  alpha = a[b + 1] ## parametro de potencia
+  
+  n.cov.cure = dim(x.cure)[2] ## numero de covariaveis com fracao de cura, para risco tiramos um (beta0)
+  n.cov.risk = dim(x.risk)[2] ## numero de covariaveis com fracao de cura, para risco tiramos um (beta0)
+  
+  betas.cure = a[(b + 2):(b + 1 + n.cov.cure)]
+  betas.risk = a[(b + 5):(b + 4 + n.cov.risk)]
+  
+  
+  n.sample <- nrow(x.cure)
+  
+  cens <- ifelse(is.finite(r), 1, 0)
+  lik <- rep(0, n.sample)
+  
+  p2 <- spop.mepp(time=l[cens==1], levels=hazards, alpha=alpha, 
+                  cuts=grid.vet, betas.risk=betas.risk, betas.cure=betas.cure,
+                  cure.matrix=x.cure[cens==1,], risk.matrix=x.risk[cens==1,])
+  
+  p1 <-  spop.mepp(time=r[cens==1], levels=hazards, alpha=alpha, 
+                   cuts=grid.vet, betas.risk=betas.risk, betas.cure=betas.cure,
+                   cure.matrix=x.cure[cens==1,], risk.matrix=x.risk[cens==1,])
+  
+  lik[cens==1] <- p2-p1
+  
+  p1 <- spop.mepp(time=l[cens==0], levels=hazards, alpha=alpha, 
+                  cuts=grid.vet, betas.risk=betas.risk, betas.cure=betas.cure,
+                  cure.matrix=x.cure[cens==1,], risk.matrix=x.risk[cens==1,])
+  
+  lik[cens==0] <- p1
+  return(sum(log(lik)))
   
 }
 
+#--- Parametros falha:
+alpha.f   <- 0.8 
+lambda.f  <- c(1.1, 0.8, 0.5)
+n.intervals <- length(lambda.f)
+grid.time <- c(0.5, 2)
+beta.f    <- c(-0.5, 0.5)
+#beta.f    <- 0
+
+beta.c    <- c(1, 0.5, -0.5)
+lambda.c <- 1
 
 
-taxas.de.falha = c(0.6, 0.8, 0.9)
-particoes = c(0.3,0.6)
-potencia = 1.4
 
-betas.cura = c(0.823,-0.5,0.3)
-betas.risco = c(-0.7,0.1)
+taxas.de.falha = c(1.1, 0.8, 0.5)
+particoes = c(0.5, 2)
+potencia = 0.8
+
+betas.cura = c(1, 0.5, -0.5)
+betas.risco = c(-0.5, 0.5)
 
 parametros = c(taxas.de.falha, potencia, betas.cura, betas.risco)
 
-dados = sim.cure.icen.mepp(N = 1000, prob.ber = 0.5, betas.cure = betas.cura,
+dados = sim.cure.icen.mepp(N = 100, prob.ber = 0.5, betas.cure = betas.cura,
                            betas.risk = betas.risco, c1 = 4, c2 = 7,
                            lambdas = taxas.de.falha, grid = particoes, alpha = potencia)
 
 
-## tentativa de estimacao por Maxima Verossimilhanca
-grid.obs = time.grid.interval(li = dados$L, ri = dados$R, 
-                              type = "OBS", bmax = length(taxas.de.falha))
-
-grid.obs = grid.obs[-c(1, length(grid))]
-
-chutes = c(rep(0.4,length(grid)+1),1, 1, 0.5, 0.5, 0.5, 0.5)
-
 
 ## Metodo numerico BFGS
-estimacao.intervalar = optim(par = chutes,
-                             fn = loglik.int.fc2,
-                             gr = NULL,
+estimacao.intervalar = optim(par = parametros, fn=loglikIC,
+                             gr = NULL, method = "BFGS",
+                             control=list(fnscale=-1),
                              hessian = TRUE,
-                             method = "BFGS",
-                             time.l =  dados$L, 
-                             time.r = dados$R,
-                             grid = grid.obs,
-                             Yi = dados$risk,
-                             x.matriz = cbind(1,dados$X1, dados$X2))
-
-estimacao.intervalar$par
-parametros
-
-
-estimacao.intervalar2 = optim(par = chutes,
-                             fn = loglik.int.fc,
-                             gr = NULL,
-                             hessian = F,
-                             method = "Nelder-Mead",
-                             time.l =  dados$L, 
-                             time.r = dados$R,
-                             grid = grid.obs,
-                             Yi = dados$risk,
-                             x.matriz = cbind(1,dados$X1, dados$X2))
-estimacao.intervalar2$par
-parametros
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## funcao de geracao de dados com censura intervalar e fracao de cura
-sim_bch <- function(N, theta = c(1, 0.5, 0),
-                    lambda = 1, A = 5, B = 15, prob = 0.5){
-
-  ## geracao de dados fracao de cura
-  intercept <- 1
-  xi1 <- stats::rbinom(N, 1, prob)
-  xi2 <- stats::rnorm(N)
-  X <- data.frame(intercept, xi1, xi2)
-
-  lambda_pois <- as.numeric(exp(theta %*% t(X)))
-  N_L <- stats::rpois(N, lambda_pois)
-  a <- stats::rexp(N)
-  C <- cbind(A,a * B)
-  C <- C[,1] * (C[,1] <= C[,2]) + C[,2] * (C[,1] > C[,2])
-  T <- c(1:N) * NA
-
-  for (i in 1:N) {
-    T[i] <- ifelse(N_L[i] > 0, min(stats::rexp(N_L[i],
-                                               lambda)), Inf)
-  }
-
-  delta <- ifelse(T <= C,1,0)
-  Z <- ifelse(T <= C, T, C)
-  L <- R <- Z * NA
-  for (i in 1:N){
-    if (delta[i] == 0){
-      L[i] <- Z[i]
-      R[i] <- Inf
-    }
-    else{
-      L[i] <- 0
-      add  <- stats::runif(1, 0.1, 0.5)
-      R[i] <- add
-      check <- (L[i] <= Z[i] & Z[i] < R[i])
-      while(!check){
-        L[i] <- L[i] + add
-        add <- stats::runif(1, 0.1, 0.5)
-        R[i] <- R[i] + add
-        check <- (L[i] <= Z[i] & Z[i] < R[i])
-      }
-    }
-  }
-  dados <- data.frame(Z, L, R, delta, xi1, xi2, N_latent = N_L)
-  return(dados)
-}
-
-## especificacoes amostrais
-N = 100
-prob.ber = 0.5
-
-betas = c(1.2, 0.5, 1.5)
-A = 12
-B = 17
-lambda = 1
-
-## geracao de dados fracao de cura
-intercept <- 1
-xi1 <- stats::rbinom(N, 1, prob.ber)
-xi2 <- stats::rnorm(N)
-X <- data.frame(intercept, xi1, xi2)
-
-lambda_pois <- as.numeric(exp(betas %*% t(X)))
-
-N_L <- stats::rpois(N, lambda_pois)
-
-a <- stats::rexp(N)
-C <- cbind(A,a * B)
-C <- pmin(C[,1], C[,2])
-
-
-tempo <- c(1:N) * NA
-
-for(unidade in 1:N){
-  tempo[unidade] <- ifelse(N_L[unidade] >= 0, min(stats::rexp(N_L[unidade],lambda)), Inf)
-}
-
-delta = ifelse(tempo <= C, 1,0)
-
-Z.tempo = ifelse(tempo <= C, tempo, C)
-
-L = R = Z.tempo*NA
-
-for(unidade in 1:N){
-  if (delta[unidade] == 0){
-    L[unidade] = Z.tempo[unidade]
-    R[unidade] = Inf
-  }
-  else{
-    L[unidade] = 0
-    Qj = stats::runif(1, 0.1, 0.5)
-    R[unidade] = Qj
-    verifica = (L[unidade] <= Z.tempo[unidade] & Z.tempo[unidade] < R[unidade])
-  }
-  while(!check){
-    L[unidade] = L[unidade] + Qj
-    Qj = stats::runif(1, 0.1, 0.5)
-    R[unidade] = R[unidade] + Qj
-    verifica = (L[unidade] <= Z.tempo[unidade] & Z.tempo[unidade] < R[unidade])
-  }
-}
-
-dados = data.frame()
-
-for (i in 1:N){
-  if (delta[i] == 0){
-    L[i] <- Z[i]
-    R[i] <- Inf
-  }
-  else{
-    L[i] <- 0
-    add  <- stats::runif(1, 0.1, 0.5)
-    R[i] <- add
-    check <- (L[i] <= Z[i] & Z[i] < R[i])
-    while(!check){
-      L[i] <- L[i] + add
-      add <- stats::runif(1, 0.1, 0.5)
-      R[i] <- R[i] + add
-      check <- (L[i] <= Z[i] & Z[i] < R[i])
-    }
-  }
-}
-dados <- data.frame(Z, L, R, delta, xi1, xi2, N_latent = N_L)
-return(dados)
-
-
+                             l=dados$L, 
+                             r=dados$R, 
+                             x.cure=cbind(1, x1=dados$X1, x2=dados$X2),
+                             x.risk=cbind(x1=dados$X1, x2=dados$X2),
+                             grid.vet=particoes)
 
 
 
