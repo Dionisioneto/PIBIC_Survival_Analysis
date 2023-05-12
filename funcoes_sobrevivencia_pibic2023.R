@@ -420,23 +420,6 @@ gen.mepp.cox <- function(n = n, lambda.par, alpha.par, cuts, beta.par, x.mat){
   }
 
 
-# taxas = c(1.1, 0.8, 0.5)
-# intervalos = c(0.5, 2)
-# t_PE = rpch(1000, intervalos, taxas)
-# alpha = 2.5
-# 
-# beta_par = c(0.5, 2.3)
-# x1 = rbinom(1000, 1, prob = 0.5)   ## continuo
-# x2 = rnorm(1000, mean = 0, sd = 1) ## discreto
-# covars = cbind(x1, x2)
-# 
-# valores = gen.mepp(n = 1000, 
-#          lambda.par = taxas, 
-#          alpha.par = alpha,
-#          cuts = intervalos,
-#          beta.par = beta_par,
-#          x.mat = covars)
-
 ##------------------------------------------------------------------------------------------------------
 
 ## ------

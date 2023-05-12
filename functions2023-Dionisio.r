@@ -283,7 +283,7 @@ loglikIC2 <- function(a, l=l, r=r, x.cure=x.cure, grid.vet=grid.vet){
 
 library(eha)
 
-n      <- 1000 # Tamanho amostral
+n <- 10000 # Tamanho amostral
 
 #--- Par?metros falha:
 alpha.f   <- 0.8 
