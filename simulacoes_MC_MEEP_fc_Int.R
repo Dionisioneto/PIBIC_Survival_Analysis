@@ -166,8 +166,6 @@ loglikIC <- function(a, l=l, r=r, x.cure=x.cure, x.risk=x.risk, grid.vet=grid.ve
 ## Gerando a parametrizacao para o MEPP
 ## ---
 
-n = 50 # Tamanho amostral
-
 ## Informacao do MEPP
 
 taxas.de.falha =  c(1.1, 0.3, 0.9)
@@ -188,11 +186,28 @@ rownames(Theta) = c("lambda1", "lambda2", "lambda3",
                     "beta1", "beta2")
 
 ###################################################################################
-## Organizador das iteracoes Monte Carlo
 
-n.iter = 600 ## replicacoes Monte Carlo
+
+###################################################################################
+
+### ---
+### Algotirmo Monte Carlo para as
+### estimacoes de Maxima Verossimilhanca
+### ---
+
+# salvar resultados
+## ensaio50, ensaio200, ensaio500, ensaio1000, ensaio5000
+
+
+n.amostras = c(50,100,500,1000)
+## replicacoes Monte Carlo
+
+amostra = n.amostras[4]
+ 
 iteracao = 1 # iniciador do laco while
-
+n.iter = 600
+  
+## Organizador das iteracoes Monte Carlo
 
 ## armazenamento das iteracoes
 matrix.iter = matrix(data = 0, nrow = n.iter, 
@@ -203,24 +218,16 @@ matrix.ep = matrix(data = 0, nrow = n.iter,
 
 ## particao do banco de dados originais
 n.intervals = length(particoes) + 1
-  
+
 col.taxas.de.falha = 1:n.intervals  
 col.potencia = n.intervals + 1
 col.betas.cura = (n.intervals + 2):(n.intervals + 1 + length(betas.cura))
 col.betas.risco = (n.intervals + 2 + length(betas.cura)):(n.intervals + 1 +  length(betas.cura) + length(betas.risco))
 
-
 ## contagens nas quais nao houve a convergencia 
 ## pelo metodo numerico BFGS
 
 iter.error = c()
-
-###################################################################################
-
-### ---
-### Algotirmo Monte Carlo para as
-### estimacoes de Maxima Verossimilhanca
-### ---
 
 while (iteracao <= n.iter) {
   result = tryCatch({
@@ -229,9 +236,9 @@ while (iteracao <= n.iter) {
     ## geracao de dados do tempo de falha com
     ## censura intervalar e fracao de cura
     
-    data = sim.std.cure.ICdata(n=n, lambda.par=taxas.de.falha, alpha.par=potencia, 
-                                grid.vet=particoes, beta.par=betas.risco, lambda.parc=0.9, 
-                                theta.par=betas.cura, A = 5, B = 15)
+    data = sim.std.cure.ICdata(n=amostra, lambda.par=taxas.de.falha, alpha.par=potencia, 
+                               grid.vet=particoes, beta.par=betas.risco, lambda.parc=0.9, 
+                               theta.par=betas.cura, A = 5, B = 15)
     
     ## particao para a estimacao
     grid.observado = time.grid.obs.t(data$tempo, data$delta, n.int = length(taxas.de.falha))
@@ -261,11 +268,7 @@ while (iteracao <= n.iter) {
     matrix.iter[iteracao,col.betas.cura] = estimacao$par[col.betas.cura]
     matrix.iter[iteracao,col.betas.risco] = estimacao$par[col.betas.risco]
     
-    matrix.ep[iteracao,] = sqrt(diag(solve(-estimacao$hessian)))
-    
-    if(NA %in% sqrt(diag(solve(-estimacao$hessian)))){
-      estimacao = stop()
-    }
+    vetor.ep = sqrt(diag(solve(-estimacao$hessian)))
     
     iteracao = iteracao + 1
     
@@ -279,6 +282,13 @@ while (iteracao <= n.iter) {
   }
   )
   
+  if(anyNA(vetor.ep)){
+    print("Raiz negativa gerada")
+    iteracao = iteracao - 1
+  } else{
+    matrix.ep[iteracao,] = vetor.ep
+  }
+  
   # continua as iteracoes se tiver um erro
   if(is.null(result$convergence)){
     iter.error[iteracao] = as.character(iteracao)
@@ -291,11 +301,6 @@ while (iteracao <= n.iter) {
 ## retirando os NA
 iter.error[!is.na(iter.error)]
 
-
-## ------
-## Verificacao da matrizes de Informacao
-## matrix.iter; matrix.ep
-## ------
 
 ## ------
 ## Verificando se a estimacao foi eficiente
@@ -338,14 +343,16 @@ limite.inferior = matrix.iter[,] - (quantil*matrix.ep[,])
 ## porcentagem de capturacao do intervalo de confianca para as taxas
 prob.cobertura = colMeans(Theta.matrix[,] >= limite.inferior & Theta.matrix[,] <= limite.superior)
 
-cbind(Theta,esperanca.est, dp.est, bias, prob.cobertura)
+matriz.resultados = cbind(Theta,esperanca.est, dp.est, bias, prob.cobertura)
 
-# salvar resultador
-## ensaio50, ensaio200, ensaio500, ensaio1000, ensaio5000
-
-
+objeto = paste("mc_fc_ci_mepp_", amostra, sep = "")
+assign(objeto , matriz.resultados)
 
 
+
+ 
+  
+  
 
 
 
