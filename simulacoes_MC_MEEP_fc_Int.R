@@ -166,11 +166,10 @@ loglikIC <- function(a, l=l, r=r, x.cure=x.cure, x.risk=x.risk, grid.vet=grid.ve
 ## Gerando a parametrizacao para o MEPP
 ## ---
 
-## Informacao do MEPP
 
-taxas.de.falha =  c(1.1, 0.3, 0.9)
-particoes = c(0.6, 2)
-potencia = 1.2
+taxas.de.falha =  c(1.1, 0.8, 0.5)
+particoes = c(0.5, 2)
+potencia = 0.8
 
 ## Pesos das Covariaveis 
 
@@ -202,10 +201,10 @@ rownames(Theta) = c("lambda1", "lambda2", "lambda3",
 n.amostras = c(50,100,500,1000)
 ## replicacoes Monte Carlo
 
-amostra = n.amostras[4]
+amostra = n.amostras[1]
  
 iteracao = 1 # iniciador do laco while
-n.iter = 600
+n.iter = 10
   
 ## Organizador das iteracoes Monte Carlo
 
@@ -229,45 +228,31 @@ col.betas.risco = (n.intervals + 2 + length(betas.cura)):(n.intervals + 1 +  len
 
 iter.error = c()
 
-while (iteracao <= n.iter) {
+while(iteracao <= n.iter) {
   result = tryCatch({
-    cat("Realizando iteracao: ", iteracao, "/", n.iter, "\n", sep = "")
-    
-    ## geracao de dados do tempo de falha com
-    ## censura intervalar e fracao de cura
     
     data = sim.std.cure.ICdata(n=amostra, lambda.par=taxas.de.falha, alpha.par=potencia, 
-                               grid.vet=particoes, beta.par=betas.risco, lambda.parc=0.9, 
+                               grid.vet=particoes, beta.par=betas.risco, lambda.parc=1, 
                                theta.par=betas.cura, A = 5, B = 15)
     
-    ## particao para a estimacao
+    covariaveis.cura = cbind(1, data$xi1, data$xi2)
+    covariaveis.risco = cbind(data$xi1, data$xi2)
+    
     grid.observado = time.grid.obs.t(data$tempo, data$delta, n.int = length(taxas.de.falha))
     grid.observado = grid.observado[-c(1, length(grid.observado))]
     
     chutes = c(rep(0.1, length(taxas.de.falha)), 1, 1, 0.5, 0.5, 0.5, 0.5)
     
-    
     ## Estimacao Metodo numerico BFGS
     
-    estimacao = optim(par = chutes,
-                      fn = loglikIC,
-                      gr = NULL, 
-                      method = "BFGS",
-                      control=list(fnscale=-1),
-                      hessian = TRUE,
-                      l = data$L,
-                      r = data$R,
-                      grid.vet = grid.observado,
-                      x.cure = cbind(1, data$xi1, data$xi2),
-                      x.risk = cbind(data$xi1, data$xi2))
-    
+    estimacao = optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
+                      hessian = TRUE, l=data$L, control=list(fnscale=-1),
+                      r=data$R, x.cure=covariaveis.cura, x.risk=covariaveis.risco,
+                      grid.vet=grid.observado)
     
     ## salvar resultados
-    matrix.iter[iteracao,col.taxas.de.falha] = estimacao$par[col.taxas.de.falha]
-    matrix.iter[iteracao,col.potencia] = estimacao$par[col.potencia]
-    matrix.iter[iteracao,col.betas.cura] = estimacao$par[col.betas.cura]
-    matrix.iter[iteracao,col.betas.risco] = estimacao$par[col.betas.risco]
-    
+    matrix.iter[iteracao,] = estimacao$par
+
     vetor.ep = sqrt(diag(solve(-estimacao$hessian)))
     
     iteracao = iteracao + 1
@@ -292,10 +277,10 @@ while (iteracao <= n.iter) {
   # continua as iteracoes se tiver um erro
   if(is.null(result$convergence)){
     iter.error[iteracao] = as.character(iteracao)
-    #iteracao = iteracao
   }
   
   # caso contrario, com os resultados
+  cat("Realizando iteracao: ", iteracao, "/", n.iter, "\n", sep = "")
 }
 
 ## retirando os NA
@@ -337,6 +322,9 @@ bias = colMeans(bias.matrix)
 nivel.conf = 0.95
 quantil = qnorm(p = nivel.conf+((1-nivel.conf)/2), mean=0, sd=1)
 
+
+
+
 limite.superior = matrix.iter[,] + (quantil*matrix.ep[,])
 limite.inferior = matrix.iter[,] - (quantil*matrix.ep[,])
 
@@ -350,8 +338,7 @@ assign(objeto , matriz.resultados)
 
 
 
- 
-  
+
   
 
 

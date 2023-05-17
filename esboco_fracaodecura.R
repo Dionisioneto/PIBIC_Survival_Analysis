@@ -13,7 +13,7 @@
 source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
 
 if(!require(pacman)) install.packages("pacman"); library(pacman)
-p_load(survival, ReIns)
+p_load(survival, )
 
 ## ------
 ## Funcao geradora de dados para censura intervalar e fracao de cura,
