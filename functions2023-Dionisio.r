@@ -323,7 +323,7 @@ loglikIC2 <- function(a, l=l, r=r, x.cure=x.cure, grid.vet=grid.vet){
 
 library(eha)
 
-n <- 50 # Tamanho amostral
+n <- 100 # Tamanho amostral
 
 #--- Par?metros falha:
 alpha.f   <- 0.8 
@@ -368,7 +368,7 @@ while(i <= samp) {
     cat("Realizando iteracao: ", i, "/", samp, "\n", sep = "")
     dadosIC <- sim.std.cure.ICdata(n=n, lambda.par=lambda.f, alpha.par=alpha.f, 
                                    grid.vet=grid.time, beta.par= beta.f, lambda.parc=1, 
-                                   theta.par = beta.c , A = 20, B =25)
+                                   theta.par = beta.c , A = 5, B =10)
     
     
     x.f <- cbind(x1=dadosIC$xi1, x2=dadosIC$xi2)
@@ -459,7 +459,7 @@ dp.est = apply(est, MARGIN = 2, FUN = sd)
 
 Theta.matrix = t(matrix(rep(as.vector(Theta),samp), nrow = 9))
 
-bias.matrix = (est-Theta.matrix)/Theta.matrix
+bias.matrix = (est-Theta.matrix)/Theta.matrix*100
 
 ## vies (Bias)
 bias = colMeans(bias.matrix)
@@ -494,7 +494,7 @@ summary(prop.cens[,1])
 boxplot(prop.cens[,1], ylim = c(0,1))
 
 setwd('C:\\Users\\NetoDavi\\Desktop\\survival_pibic')
-\write.csv2(x = matriz.resultados, file = "resultado_n50.csv")
+write.csv2(x = matriz.resultados, file = "resultado2_n50.csv")
 
 
 head(dadosIC)
