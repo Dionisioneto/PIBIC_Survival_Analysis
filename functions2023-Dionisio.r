@@ -323,7 +323,7 @@ loglikIC2 <- function(a, l=l, r=r, x.cure=x.cure, grid.vet=grid.vet){
 
 library(eha)
 
-n <- 100 # Tamanho amostral
+n <- 500 # Tamanho amostral
 
 #--- Par?metros falha:
 alpha.f   <- 0.8 
@@ -359,7 +359,6 @@ prop.cens = matrix(data = 0, nrow = samp,
 
 prop.cura = matrix(data = 0, nrow = samp, 
                    ncol = 2)
-
 
 
 
@@ -418,29 +417,30 @@ while(i <= samp) {
   
 }
 
+
 for(i in 1: samp){
   cat("Realizando iteracao: ", i, "/", samp, "\n", sep = "")
-  dadosIC <- sim.std.cure.ICdata(n=n, lambda.par=lambda.f, alpha.par=alpha.f, 
-                                 grid.vet=grid.time, beta.par= beta.f, lambda.parc=1, 
+  dadosIC <- sim.std.cure.ICdata(n=n, lambda.par=lambda.f, alpha.par=alpha.f,
+                                 grid.vet=grid.time, beta.par= beta.f, lambda.parc=1,
                                  theta.par = beta.c , A = 5, B =10)
-  
-  
+
+
   x.f <- cbind(x1=dadosIC$xi1, x2=dadosIC$xi2)
   x.c <- cbind(1, x1=dadosIC$xi1, x2=dadosIC$xi2)
-  
+
   grid.obs=time.grid.interval(li=dadosIC$L, ri=dadosIC$R, type="OBS", bmax=length(lambda.f ))
   grid.obs=grid.obs[-c(1, length(grid.obs))]
   chutes = c(rep(0.1, length(lambda.f)), 1, 1, 0.5, 0.5, 0.5, 0.5)
-  
+
   test <- optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
-                control=list(fnscale=-1), hessian = TRUE, l=dadosIC$L, 
+                control=list(fnscale=-1), hessian = TRUE, l=dadosIC$L,
                 r=dadosIC$R, x.cure=x.c, x.risk=x.f, grid.vet=grid.obs)
-  
+
   est[i,] <- test$par
   prop.cens[i,] = prop.table(table(dadosIC$delta))
   prop.cura[i,] = prop.table(table(dadosIC$Y))
-  
-  
+
+
   vetor.ep = sqrt(diag(solve(-test$hessian)))
   matrix.ep[i,] = vetor.ep
 }
@@ -494,10 +494,76 @@ summary(prop.cens[,1])
 boxplot(prop.cens[,1], ylim = c(0,1))
 
 setwd('C:\\Users\\NetoDavi\\Desktop\\survival_pibic')
-write.csv2(x = matriz.resultados, file = "resultado2_n50.csv")
+write.csv2(x = matriz.resultados, file = "resultado2_n500.csv")
+
+## histogramas
+par(mfrow=c(3,3), mai = c(0.6, 0.6, 0.2, 0.1))
+hist(est[,1], col = "steelblue", main = "", breaks = 15,
+     ylab = "Frequência", xlab = expression(hat(lambda)[1]))
+
+hist(est[,2], col = "steelblue", main = "", breaks = 15,
+     ylab = "Frequência", xlab = expression(hat(lambda)[2]))
+hist(est[,3], col = "steelblue", main = "",
+     ylab = "Frequência", xlab = expression(hat(lambda)[3]))
 
 
-head(dadosIC)
+hist(est[,4], col = "steelblue", main = "", breaks = 15,
+     ylab = "Frequência", xlab = expression(hat(alpha)))
+
+hist(est[,5], col = "steelblue", main = "", breaks = 15,
+     ylab = "Frequência", xlab = expression(hat(b)[0]))
+hist(est[,6], col = "steelblue", main = "", breaks = 15,
+     ylab = "Frequência", xlab = expression(hat(b)[1]))
+hist(est[,7], col = "steelblue", main = "", breaks = 15,
+     ylab = "Frequência", xlab = expression(hat(b)[2]))
+
+hist(est[,8], col = "steelblue", main = "", breaks = 15,
+     ylab = "Frequência", xlab = expression(hat(beta)[1]))
+hist(est[,9], col = "steelblue", main = "", breaks = 15,
+     ylab = "Frequência", xlab = expression(hat(beta)[2]))
+
+# QQ-Plots
+
+par(mfrow=c(3,3))
+
+qqnorm(est[,1], pch = 1, frame = FALSE, main = expression(hat(lambda)[1]),
+       xlab = "Quantis Teóricos", ylab = "Quantis Observados")
+qqline(est[,1], col = "steelblue", lwd = 2)
+
+qqnorm(est[,2], pch = 1, frame = FALSE, main = expression(hat(lambda)[2]),
+       xlab = "Quantis Teóricos", ylab = "Quantis Observados")
+qqline(est[,2], col = "steelblue", lwd = 2)
+
+qqnorm(est[,3], pch = 1, frame = FALSE, main = expression(hat(lambda)[3]),
+       xlab = "Quantis Teóricos", ylab = "Quantis Observados")
+qqline(est[,3], col = "steelblue", lwd = 2)
+
+
+qqnorm(est[,4], pch = 1, frame = FALSE, main = expression(hat(alpha)),
+       xlab = "Quantis Teóricos", ylab = "Quantis Observados")
+qqline(est[,4], col = "steelblue", lwd = 2)
+
+
+qqnorm(est[,5], pch = 1, frame = FALSE, main = expression(hat(b)[0]),
+       xlab = "Quantis Teóricos", ylab = "Quantis Observados")
+qqline(est[,5], col = "steelblue", lwd = 2)
+
+qqnorm(est[,6], pch = 1, frame = FALSE, main = expression(hat(b)[1]),
+       xlab = "Quantis Teóricos", ylab = "Quantis Observados")
+qqline(est[,6], col = "steelblue", lwd = 2)
+
+qqnorm(est[,7], pch = 1, frame = FALSE, main = expression(hat(b)[2]),
+       xlab = "Quantis Teóricos", ylab = "Quantis Observados")
+qqline(est[,7], col = "steelblue", lwd = 2)
+
+qqnorm(est[,8], pch = 1, frame = FALSE, main = expression(hat(beta)[1]),
+       xlab = "Quantis Teóricos", ylab = "Quantis Observados")
+qqline(est[,8], col = "steelblue", lwd = 2)
+
+qqnorm(est[,9], pch = 1, frame = FALSE, main = expression(hat(beta)[2]),
+       xlab = "Quantis Teóricos", ylab = "Quantis Observados")
+qqline(est[,9], col = "steelblue", lwd = 2)
+
 
 ## -----
 ## Estudo da curva de sobrevivencia pelo estimador de
