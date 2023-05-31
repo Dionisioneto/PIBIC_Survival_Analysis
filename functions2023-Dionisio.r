@@ -323,7 +323,7 @@ loglikIC2 <- function(a, l=l, r=r, x.cure=x.cure, grid.vet=grid.vet){
 
 library(eha)
 
-n <- 500 # Tamanho amostral
+n <- 1000 # Tamanho amostral
 
 #--- Par?metros falha:
 alpha.f   <- 0.8 
@@ -494,7 +494,7 @@ summary(prop.cens[,1])
 boxplot(prop.cens[,1], ylim = c(0,1))
 
 setwd('C:\\Users\\NetoDavi\\Desktop\\survival_pibic')
-write.csv2(x = matriz.resultados, file = "resultado2_n500.csv")
+write.csv2(x = matriz.resultados, file = "resultado2_n1000.csv")
 
 ## histogramas
 par(mfrow=c(3,3), mai = c(0.6, 0.6, 0.2, 0.1))
