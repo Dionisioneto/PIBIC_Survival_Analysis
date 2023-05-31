@@ -15,7 +15,7 @@
 source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
 
 if(!require(pacman)) install.packages("pacman"); library(pacman)
-p_load(survival, ReIns)
+p_load(survival, )
 
 >>>>>>> 2b399fdf62e9d3c8ad74c6b842611c2f5d20ff87
 ## ------
