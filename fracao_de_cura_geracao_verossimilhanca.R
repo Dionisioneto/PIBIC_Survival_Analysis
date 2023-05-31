@@ -84,8 +84,11 @@ geracao.dados.fc = function(n.size, var.ber, mean.exp, x.matrix, betas,
 geracao.dados.fc(n.size = n.sample, var.ber = Y[1], mean.exp = 10,
                   x.matrix = x.matriz[1,], betas = betas.par[2:length(betas.par)])
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 2b399fdf62e9d3c8ad74c6b842611c2f5d20ff87
 
 
 
