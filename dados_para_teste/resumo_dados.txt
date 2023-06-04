@@ -1,0 +1,44 @@
+passou
+
+** sucesso ** 
+
+smoke_cessation_Bannerger2009
+
+
+** em teste **
+
+tandmobAll_icensBKL - complexos os dados, precisa entendera estrutura
+
+aneurysm 
+
+aidsCT_icensBKL - estrutura complexa, entender mlhor. mas eu acho que falta covariaveis
+
+aidsCohort_icensBKL
+
+** Problemas **
+
+thooth - não apresenta o platô para a populacao de curados
+
+yoghurt_icensBKL - tem apenas uma covariavel
+
+HIV_SUM_set2 - tem apenas uma covariavel
+
+hemofilia_icens_teste - tem apenas uma covariavel
+
+diabetes_glrt - tem apenas uma covariavel
+
+breast_cancer - nao tem informacoes de l e r
+
+breast - tem apenas uma covariavel
+
+bmt - para dados com ensura a direita
+
+
+
+
+
+
+
+
+
+

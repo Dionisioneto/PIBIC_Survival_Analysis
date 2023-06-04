@@ -10,15 +10,15 @@ cal_ht_MEP <- function(time.obs, lambda.par=lambda.par, grid.vet=grid.vet){
   
   dens_MEP <- dpch(x =time.obs, cuts = grid.vet, levels = lambda.par)
   Cumu_MEP <- ppch(q=time.obs, cuts = grid.vet, levels = lambda.par)
-  ht <- dens_MEPP/(1-Cumu_MEPP)
+  ht <- dens_MEP/(1-Cumu_MEP)
   
   return(ht)
 }
 
 
-cal_Ht_MEPP <- function(time.obs, lambda.par=lambda.par, grid.vet=grid.vet){
-  Cumu_MEPP <- ppch(q=time.obs, cuts = grid.vet, levels = lambda.par)
-  Ht  = -log(1-Cumu_MEPP)
+cal_Ht_MEP <- function(time.obs, lambda.par=lambda.par, grid.vet=grid.vet){
+  Cumu_MEP <- ppch(q=time.obs, cuts = grid.vet, levels = lambda.par)
+  Ht  = -log(1-Cumu_MEP)
   return(Ht)
 }
 
@@ -29,7 +29,7 @@ SpopMEP <- function(t=t, lambda.par=lambda.par, grid.vet=grid.vet, beta.par=beta
   
   elinpred <- as.numeric(exp(1*(x.cure%*%theta.par)))
   probY    <- 1/(1+elinpred)
-  spop     <- probY+(1-probY)*S_MEPP
+  spop     <- probY+(1-probY)*S_MEP
   return(spop)
 }
 
@@ -47,7 +47,7 @@ loglikIC.MEP <- function(a, l=l, r=r, x.cure=x.cure, x.risk=x.risk, grid.vet=gri
   n.cov.risk = dim(x.risk)[2] ## numero de covariaveis com fracao de cura, para risco tiramos um (beta0)
   
   betas.cure = a[(b + 2):(b + 1 + n.cov.cure)]
-  betas.risk = a[(b + 5):(b + 4 + n.cov.risk)]
+  betas.risk = a[(b + 2 + n.cov.cure):(b + 1 + n.cov.cure + n.cov.risk)]
   
   
   n.sample <- nrow(x.cure)
@@ -65,21 +65,23 @@ loglikIC.MEP <- function(a, l=l, r=r, x.cure=x.cure, x.risk=x.risk, grid.vet=gri
   
 }
 
-x.f <- cbind(x1=dadosIC$xi1, x2=dadosIC$xi2)
-x.c <- cbind(1, x1=dadosIC$xi1, x2=dadosIC$xi2)
+particoes = 2
 
-grid.obs=time.grid.interval(li=dadosIC$L, ri=dadosIC$R, type="OBS", bmax=length(lambda.f))
+x.f <- cbind(hemo.icens$High, hemo.icens$Medium)
+x.c <- cbind(1, hemo.icens$High)
+
+left = hemo.icens$L
+right = hemo.icens$R
+
+grid.obs=time.grid.interval(li=left, ri=right, type="OBS", bmax=particoes+1)
 grid.obs=grid.obs[-c(1, length(grid.obs))]
-chutes = c(rep(0.1, length(lambda.f)), 1, 1, 0.5, 0.5, 0.5, 0.5)
 
-test <- optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
-              control=list(fnscale=-1), hessian = TRUE, l=dadosIC$L,
-              r=dadosIC$R, x.cure=x.c, x.risk=x.f, grid.vet=grid.obs)
+chutes = c(rep(0.01, particoes+1), 1, rep(0.1, dim(x.f)[2] - 1 + dim(x.c)[2]))
 
 
-## Modelo Exponencial por partes
-
-
+test <- optim(par = chutes, fn=loglikIC.MEP, gr = NULL, method = "BFGS",
+              control=list(fnscale=-1), hessian = TRUE, l=left,
+              r=right, x.cure=x.c, x.risk=x.f, grid.vet=grid.obs)
 
 
 

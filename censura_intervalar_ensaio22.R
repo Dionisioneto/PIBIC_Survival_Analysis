@@ -241,7 +241,9 @@ estimacao.int.cox = optim(par = chutes,
                           x.matrix = cbind(dados.int$x1, dados.int$x2))
 
 estimacao.int.cox$par
-c(lambdas, alpha, betas)
+Tht = c(lambdas, alpha, betas)
+
+cbind(Tht, estimacao.int.cox$par)
 
 # ## debug da funcao de log-verossimilhanca
 # 
