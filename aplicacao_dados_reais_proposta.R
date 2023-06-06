@@ -155,9 +155,48 @@ for (int in 2:15){
   
 }
 
+## o melhor modelo foi o com dois intervalos!!
 
+n.intervalos = 2
 
+chute = c(rep(0.1,n.intervalos),
+          0.8,
+          1.2,0.1,
+          0.1)
 
+mepp.tent.breast = fit.mepp.cf(L = breast$left, R = breast$right, n.int = n.intervalos,
+                               cov.risco = cbind(breast$ther),
+                               cov.cura = cbind(1, breast$ther),
+                               start = chute)
+
+## analise residual
+
+parametros = mepp.tent.breast$estimated
+
+lambdas.est.breast = parametros[1:n.intervalos]
+alpha.est.breast = parametros[n.intervalos+1]
+b.est.breast = parametros[(n.intervalos+2):(n.intervalos+3)]
+betas.est.breast = parametros[n.intervalos+4]
+
+grid.obs.breast=time.grid.interval(li=breast$left, ri=breast$right, type="OBS", bmax= n.intervalos)
+
+grid.obs.breast=grid.obs.breast[-c(1, length(grid.obs.breast))]
+
+## residuos de martingales
+
+spop_mepp_l = SpopMEPP(t = breast$left, lambda.par = lambdas.est.breast, alpha.par = alpha.est.breast,
+                       theta.par = b.est.breast, beta.par = betas.est.breast, 
+                       x.cure = cbind(1, breast$ther), x.risk = cbind(breast$ther),
+                       grid.vet = grid.obs.breast)
+
+spop_mepp_r = SpopMEPP(t = breast$right, lambda.par = lambdas.est.breast, alpha.par = alpha.est.breast,
+                       theta.par = b.est.breast, beta.par = betas.est.breast, 
+                       x.cure = cbind(1, breast$ther), x.risk = cbind(breast$ther),
+                       grid.vet = grid.obs.breast)
+
+rm.breast = (spop_mepp_l*log(spop_mepp_l) - spop_mepp_r*log(spop_mepp_r))/(spop_mepp_l-spop_mepp_r)
+
+r.Deviance.breast  = sign(rm.breast)*(-2*(rm.breast+log(rm.breast)))^(0.5)
 
 ## smoke_cessation_Bannerge2009
 
