@@ -112,12 +112,15 @@ PPE = function(time, cuts, levels, alpha, type = "survival"){
 loglik.int.mepp = function(par, time.r, time.l,
                       grid, x.matrix){
   
+  x.matrix = as.matrix(x.matrix)
+  
   b = length(grid) + 1 ## numero de intervalos
   hazards = par[1:b] ## taxas de falha para os b intervalos
   exp = par[b + 1] ## parametro de potencia
   
   n.covars = dim(x.matrix)[2] ## numero de covariaveis
   betas = par[(b + 2):(b + 1 + n.covars)]
+  betas = as.matrix(betas)
   
   delta = ifelse(time.r == Inf, 0,1)
   
@@ -219,11 +222,39 @@ BIC.surv(ajuste.mepp.nr$loglik, n.param = length(ajuste.mepp.nr$estimated),
 HC.surv(ajuste.mepp.nr$loglik, n.param = length(ajuste.mepp.nr$estimated),
         n.sample = dim(aneurysm)[1])
 
+## ---
+## dados breast
+## ---
 
+n.intervalos = 15
 
+for (int in 2:15){
 
+  n.intervalos = int
+  
+  chute = c(rep(0.1,int),
+            1,
+            0.1)
+  
+  
+  ajuste.mepp.nr = fit.mepp(L = breast$left, R = breast$right,
+                            n.int = int, cov = cbind(breast$ther),
+                            start = chute)
+  
+  aic.sf = AIC.surv(ajuste.mepp.nr$loglik, n.param = length(ajuste.mepp.nr$estimated))
+  
+  bic.sf = BIC.surv(ajuste.mepp.nr$loglik, n.param = length(ajuste.mepp.nr$estimated),
+           n.sample = dim(breast)[1])
+  
+  hc.sf = HC.surv(ajuste.mepp.nr$loglik, n.param = length(ajuste.mepp.nr$estimated),
+          n.sample = dim(breast)[1])
+  
+  print(paste("n intervalo", int))
+  print(paste("AIC: ", aic.sf))
+  print(paste("BIC: ", bic.sf))
+  print(paste("HC: ", hc.sf))
 
-
+}
 
 
 

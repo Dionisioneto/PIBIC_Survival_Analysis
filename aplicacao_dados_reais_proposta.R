@@ -53,23 +53,111 @@ HC.surv(loglik = weibull$llk, n.param = 3,n.sample = dim(hemo.icens)[1])
 
 ## Modelo Proposto (MEPP + fracao de cura)
 
-hemo.icens$L
-hemo.icens$R
-hemo.icens$Low
+hemo.icens$L = hemo.icens$L + 0.00001
+hemo.icens$R = hemo.icens$R + 0.000011
 
-chute = c(0.1,0.1,0.1, 0.8, 1.2,0.3,0.3)
 
-x2_falso = rnorm(n = dim(hemo.icens)[1])
+n.intervalos = 2
 
-# nao convergiu
-mepp.tent = fit.mepp.cf(L = hemo.icens$L, R = hemo.icens$R, n.int = 2,
-                        cov.risco = cbind(hemo.icens$Low, x2_falso),
-                        cov.cura = cbind(1, hemo.icens$Low, x2_falso),
+chute = c(rep(0.1,n.intervalos),
+          0.8,
+          1.2,0.1,
+          0.1)
+
+
+mepp.tent.hemo = fit.mepp.cf(L = hemo.icens$L, R = hemo.icens$R, n.int = n.intervalos,
+                        cov.risco = cbind(hemo.icens$NoDose),
+                        cov.cura = cbind(1, hemo.icens$NoDose),
                         start = chute)
 
-# mepp.tent$estimated
-# mepp.tent$hessian
-# mepp.tent$loglik
+AIC.surv(loglik = mepp.tent.hemo$loglik, n.param = length(mepp.tent.hemo$estimated))
+
+BIC.surv(loglik = mepp.tent.hemo$loglik, n.param = 3, n.sample = dim(hemo.icens)[1])
+
+HC.surv(loglik = mepp.tent.hemo$loglik, n.param = 3, n.sample = dim(hemo.icens)[1])
+
+## breast cancer
+
+breast = read.table('breast.txt', header = T)
+
+dim(breast)
+head(breast)
+
+
+breast$left = breast$left + 0.0000010
+breast$right = breast$right + 0.0000011
+
+breast$right = ifelse(is.na(breast$right), Inf, breast$right)
+
+## analise exploratoria
+## estimador de turnbull ou Non-Parametric Maximum Likelihood Estimator (NPMLE)
+
+turnbull_fit_breast = ic_np(cbind(left, right)~0, data = breast)
+
+plot(turnbull_fit_breast)
+
+
+## modelo weibull
+
+weibull.breast = ic_par(formula = cbind(left, right) ~ ther, data = breast,
+                 model = "ph", dist = "weibull")
+
+weibull.breast$coefficients
+
+plot(weibull.breast)
+
+
+AIC.surv(loglik = weibull.breast$llk,
+         n.param = length(mepp.tent.breast$estimated))
+
+BIC.surv(loglik = weibull.breast$llk,
+         n.param = length(mepp.tent.breast$estimated),
+         n.sample = dim(breast)[1])
+
+HC.surv(loglik = weibull.breast$llk,
+        n.param = length(mepp.tent.breast$estimated),
+        n.sample = dim(breast)[1])
+
+
+
+
+n.intervalos = 15
+
+for (int in 2:15){
+  
+  n.intervalos = int
+  
+  chute = c(rep(0.1,n.intervalos),
+            0.8,
+            1.2,0.1,
+            0.1)
+  
+  mepp.tent.breast = fit.mepp.cf(L = breast$left, R = breast$right, n.int = n.intervalos,
+                                 cov.risco = cbind(breast$ther),
+                                 cov.cura = cbind(1, breast$ther),
+                                 start = chute)
+  
+  aic = AIC.surv(loglik = mepp.tent.breast$loglik,
+           n.param = length(mepp.tent.breast$estimated))
+  
+  bic = BIC.surv(loglik = mepp.tent.breast$loglik,
+           n.param = length(mepp.tent.breast$estimated),
+           n.sample = dim(breast)[1])
+  
+  hc = HC.surv(loglik = mepp.tent.breast$loglik,
+          n.param = length(mepp.tent.breast$estimated),
+          n.sample = dim(breast)[1])
+  
+  print(paste("n intervalo", int))
+  print(paste("AIC: ", aic))
+  print(paste("BIC: ", bic))
+  print(paste("HC: ", hc))
+  
+}
+
+
+
+
 
 ## smoke_cessation_Bannerge2009
 
@@ -115,7 +203,7 @@ n_cigarros = smoke2009$F10Cigs_pad # Numero de cigarros fumados por dia, normali
 duracao_dependente = smoke2009$Duration_pad # Duracao como dependente, normalizado
 sexo = smoke2009$SexF
 
-covariaveis = cbind(tratamento, n_cigarros, duracao_dependente, sexo)
+covariaveis = cbind(tratamento, sexo)
 
 ## ---
 ## modelo exponencial por partes com fracao de cura
@@ -132,12 +220,15 @@ covariaveis = cbind(tratamento, n_cigarros, duracao_dependente, sexo)
 ## beta.cura = 5
 ## beta.risco = 4
 
-chute = c(0.1,0.1,0.1,
-          8,
-          1.2,-0.5,0.2,-0.3,0.4,
-          0.4,-0.5,0.3,0.3)
+n.intervalos = 4
+
+chute = c(rep(0.1, n.intervalos),
+          2,
+          1.2,0.1,0.2,
+          0.4,0.1)
   
-mepp.tent = fit.mepp.cf(L = smoke2009$Timept1, R = smoke2009$Timept2, n.int = 3,
+
+mepp.tent = fit.mepp.cf(L = smoke2009$Timept1, R = smoke2009$Timept2, n.int = n.intervalos,
                         cov.risco = covariaveis,
                         cov.cura = cbind(1, covariaveis),
                         start = chute)
@@ -160,9 +251,10 @@ HC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated),
 ## tooth
 
 # tooth = read.table('tooth.txt', header = T)
-# 
+# # 
 # dim(tooth)
 # head(tooth) ## para l = tooth$left, r = tooth$rightInf
+# # 
 # 
 # delta.tooth = ifelse(tooth$rightInf == Inf, 0, 1)
 # 
@@ -180,11 +272,11 @@ HC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated),
 ## ---------------------------------------------------------------
 
 # tandmoball = read.table('tandmobAll_icensBKL.txt', header = T)
-# 
+# # 
 # dim(tandmoball)
 # head(tandmoball) ## para l = tooth$left, r = tooth$rightInf
-
-
+# 
+# 
 # delta.tooth = ifelse(tooth$rightInf == Inf, 0, 1)
 
 
@@ -242,16 +334,18 @@ HC.surv(loglik = a.weibull$llk, n.param = length(a.weibull$coefficients),n.sampl
 ## beta.cura = 4
 ## beta.risco = 3
 
-chute = c(0.1,0.1,0.1,0.1,
+numero.intervalos = 3
+
+chute = c(rep(0.1,numero.intervalos),
           1,
-          1.2,0.1,0.1,0.1,
-          0.1,0.1,0.1)
+          1.2,0.1,0.1,
+          0.1,0.1)
 
 gr_pad = (aneurysm$gr - mean(aneurysm$gr))/sd(aneurysm$gr) ## precisa normalizar para estimar
 
 covariaveis.aneurysm = cbind(aneurysm$mo, gr_pad, aneurysm$lok)
 
-mepp.tent = fit.mepp.cf(L = aneurysm$t.left, R = aneurysm$t.right, n.int = 4,
+mepp.tent = fit.mepp.cf(L = aneurysm$t.left, R = aneurysm$t.right, n.int = numero.intervalos,
                         cov.risco = covariaveis.aneurysm,
                         cov.cura = cbind(1, covariaveis.aneurysm),
                         start = chute)
@@ -299,6 +393,8 @@ aidscohort$R.Y = ifelse(is.na(aidscohort$R.Y), Inf, aidscohort$R.Y)
 aidscohort$L.Z = ifelse(is.na(aidscohort$L.Z), 0, aidscohort$L.Z)
 aidscohort$R.Z = ifelse(is.na(aidscohort$R.Z), Inf, aidscohort$R.Z)
 
+## codificando para zero e um a variavel idade
+aidscohort$age = ifelse(aidscohort$age==2,1,0)
 
 ## ----
 ## Analise descritiva dos dados
@@ -339,50 +435,55 @@ HC.surv(loglik = aidsz.weibull$llk, n.param = length(aidsz.weibull$coefficients)
 ## modelo exponencial por partes potencia com fracao de cura
 ## ---
 
-## lambda = 2
+## lambda = 3
 ## alpha = 1
-## beta.cura = 4
-## beta.risco = 3
+## beta.cura = 3
+## beta.risco = 2
 
-chute = c(0.1,0.1,0.1,
+numero.intervalos = 15
+
+chute = c(rep(0.1,numero.intervalos ),
           1,
           1.2,0.1,0.1,
           0.1,0.1)
 
 covariaveis.Z = cbind(aidscohort$age, aidscohort$group)
-  
-mepp.tent = fit.mepp.cf(L = aidscohort$L.Z, R = aidscohort$R.Z, n.int = 3,
+
+llz = as.numeric(aidscohort$L.Z) + 0.0000010
+rrz = as.numeric(aidscohort$R.Z) + 0.0000011
+
+mepp.tent.z = fit.mepp.cf(L = llz, R = rrz, n.int = numero.intervalos ,
                         cov.risco = covariaveis.Z ,
                         cov.cura = cbind(1, covariaveis.Z ),
                         start = chute)
 
-mepp.tent$estimated
-mepp.tent$loglik
+mepp.tent.z$estimated
+mepp.tent.z$loglik
 
-AIC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated))
+AIC.surv(mepp.tent.z$loglik, n.param = length(mepp.tent.z$estimated))
 
-BIC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated),
-         n.sample = dim(aneurysm)[1])
+BIC.surv(mepp.tent.z$loglik, n.param = length(mepp.tent.z$estimated),
+         n.sample = dim(aidscohort)[1])
 
-HC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated),
-        n.sample = dim(aneurysm)[1])
+HC.surv(mepp.tent.z$loglik, n.param = length(mepp.tent.z$estimated),
+        n.sample = dim(aidscohort)[1])
 
 ## -----
-## Analise e estimacao para os dados do caso Z 
+## Analise e estimacao para os dados do caso Y 
 ## -----
 
 ## ------
 ## O modelo Weibull
 ## ------
 
-aidsz.weibull = ic_par(formula = cbind(L.Z, R.Z) ~ (age+group),
+aidsy.weibull = ic_par(formula = cbind(L.Y, R.Y) ~ (age+group),
                    data = aidscohort, model = "ph", dist = "weibull")
 
-aidsz.weibull$coefficients
+aidsy.weibull$coefficients
 
-AIC.surv(loglik = aidsz.weibull$llk, n.param = length(aidsz.weibull$coefficients))
-BIC.surv(loglik = aidsz.weibull$llk, n.param = length(aidsz.weibull$coefficients), n.sample = dim(aidscohort)[1])
-HC.surv(loglik = aidsz.weibull$llk, n.param = length(aidsz.weibull$coefficients),n.sample = dim(aidscohort)[1])
+AIC.surv(loglik = aidsy.weibull$llk, n.param = length(aidsy.weibull$coefficients))
+BIC.surv(loglik = aidsy.weibull$llk, n.param = length(aidsy.weibull$coefficients), n.sample = dim(aidscohort)[1])
+HC.surv(loglik = aidsy.weibull$llk, n.param = length(aidsy.weibull$coefficients),n.sample = dim(aidscohort)[1])
 
 
 ## ---
@@ -394,28 +495,32 @@ HC.surv(loglik = aidsz.weibull$llk, n.param = length(aidsz.weibull$coefficients)
 ## beta.cura = 4
 ## beta.risco = 3
 
-chute = c(0.1,0.1,0.1,
+numero.intervalos = 12
+
+chute = c(rep(0.1,numero.intervalos ),
           1,
           1.2,0.1,0.1,
           0.1,0.1)
 
-covariaveis.Z = cbind(aidscohort$age, aidscohort$group)
-  
-mepp.tent = fit.mepp.cf(L = aidscohort$L.Z, R = aidscohort$R.Z, n.int = 3,
-                        cov.risco = covariaveis.Z ,
-                        cov.cura = cbind(1, covariaveis.Z ),
+covariaveis.y = cbind(aidscohort$age, aidscohort$group)
+
+lly = as.numeric(aidscohort$L.Y) + 0.0000010
+rry = as.numeric(aidscohort$R.Y) + 0.0000011
+
+mepp.tent.y = fit.mepp.cf(L = lly , R = rry, n.int = numero.intervalos,
+                        cov.risco = covariaveis.y ,
+                        cov.cura = cbind(1, covariaveis.y),
                         start = chute)
+mepp.tent.y$estimated
+mepp.tent.y$loglik
 
-mepp.tent$estimated
-mepp.tent$loglik
+AIC.surv(mepp.tent.y$loglik, n.param = length(mepp.tent.y$estimated))
 
-AIC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated))
+BIC.surv(mepp.tent.y$loglik, n.param = length(mepp.tent.y$estimated),
+         n.sample = dim(aidscohort)[1])
 
-BIC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated),
-         n.sample = dim(aneurysm)[1])
-
-HC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated),
-        n.sample = dim(aneurysm)[1])
+HC.surv(mepp.tent.y$loglik, n.param = length(mepp.tent.y$estimated),
+        n.sample = dim(aidscohort)[1])
 
 
 

@@ -38,7 +38,7 @@ SpopMEP <- function(t=t, lambda.par=lambda.par,
                      grid.vet=grid.vet, beta.par=beta.par,
                      theta.par=theta.par, x.cure=x.cure, x.risk=x.risk){
   
-
+  beta.par = as.matrix(beta.par)
   
   S_MEP <- as.numeric(exp(-cal_Ht_MEP(time.obs=t, lambda.par=lambda.par, grid.vet=grid.vet)*exp(x.risk%*%beta.par)))
   
@@ -172,9 +172,45 @@ BIC.surv(ajuste.mep$loglik, n.param = length(ajuste.mep$estimated),
 HC.surv(ajuste.mep$loglik, n.param = length(ajuste.mep$estimated),
         n.sample = dim(smoke2009)[1])
 
+## -----
+## dados breast cancer
+## -----
 
+n.intervalos = 15
 
-
+for (int in 2:15){
+  
+  n.intervalos = int
+  
+  chute = c(rep(0.1,n.intervalos),
+            1.2,0.1,
+            0.1)
+  
+  ajuste.mep.breast = fit.mep.cf(l = breast$left, r = breast$right,
+                                 n.int = n.intervalos, cov.risco = cbind(breast$ther), 
+                                 cov.cura = cbind(1, breast$ther),
+                                 start = chute)
+  
+  ajuste.mep.breast$estimated ## estimacao errada do parametro potencia
+  ajuste.mep.breast$loglik
+  
+  aicc = AIC.surv(ajuste.mep.breast$loglik,
+           n.param = length(ajuste.mep.breast$estimated))
+  
+  bicc = BIC.surv(ajuste.mep.breast$loglik,
+           n.param = length(ajuste.mep.breast$estimated),
+           n.sample = dim(breast)[1])
+  
+  hcc = HC.surv(ajuste.mep.breast$loglik,
+          n.param = length(ajuste.mep.breast$estimated),
+          n.sample = dim(breast)[1])
+  
+  print(paste("n intervalo", int))
+  print(paste("AIC: ", aicc))
+  print(paste("BIC: ", bicc))
+  print(paste("HC: ", hcc))
+  
+}
 
 
 

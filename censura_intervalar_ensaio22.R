@@ -2,8 +2,8 @@
 ## Funcoes PIBIC 2023
 ## Projeto: Modelos Semi-Parametricos para dados
 ## de sobrevivencia com censura intervalar
-##
 ## Aplicacao a censura intervalar
+##
 ## ------
 
 ## ---

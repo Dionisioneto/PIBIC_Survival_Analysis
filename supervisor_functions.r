@@ -196,6 +196,7 @@ sim.std.cure.ICdata <- function(n=n, lambda.par=lambda.par, alpha.par=alpha.par,
 
 SpopMEPP <- function(t=t, lambda.par=lambda.par, alpha.par=alpha.par, grid.vet=grid.vet, beta.par=beta.par, theta.par=theta.par, x.cure=x.cure, x.risk=x.risk){
   
+  beta.par= as.matrix(beta.par)
   
   S_MEPP <- as.numeric(exp(-cal_Ht_MEPP(time.obs=t, lambda.par=lambda.par, alpha.par=alpha.par, grid.vet=grid.vet)*exp(x.risk%*%beta.par)))
   
