@@ -13,7 +13,7 @@ library(latex2exp)
 require(eha)
 
 
-source('C:/Users/NetoDavi/Downloads/funcoes_sobrevivencia_pibic2023 (1).R')
+source('C:/Users/NetoDavi/Downloads/funcoes_sobrevivencia_pibic2023.R')
 
 ## Geracao de dados
 
@@ -44,7 +44,7 @@ hist(tempos)
 table(cut(tempos, c(0,intervalos, Inf)))
 
 estimacao = optim(par = c(rep(0.1,length(taxas)),2),
-                  fn = loglik.PPE,
+                  fn = loglik.PPE2,
                   gr = NULL,
                   hessian = TRUE,
                   method = "BFGS",
@@ -93,13 +93,14 @@ taxas = list(c(0.2, 0.7),
 alphas = c(0.8, 0.8, 1.0, 1.5)
 
 # geracao de tempos de sobrevivencia por uma uniforme
+set.seed(10)
 tempo.surv = round(runif(1000, min = 0, max = 5),2)
 tempo.surv = sort(tempo.surv)
 
 
-estimacao1 = PPE(tempo = tempo.surv, 
-                 intervalos = median(tempo.surv), 
-                 taxas = taxas[[1]],
+estimacao1 = PPE(time = tempo.surv, 
+                 cuts = median(tempo.surv), 
+                 levels = taxas[[1]],
                  alpha = alphas[1])
 
 for(i in 2011:2015){
@@ -110,23 +111,24 @@ for(i in 2011:2015){
 
 for (exemplo in 1:4){
   variavel =  paste0("estimacao",exemplo)
-  assign(variavel, PPE(tempo = tempo.surv, 
-                      intervalos = median(tempo.surv), 
-                      taxas = taxas[[exemplo]],
-                      alpha = alphas[exemplo]))
+  assign(variavel, PPE(time = tempo.surv,
+                      cuts = median(tempo.surv), 
+                      levels= taxas[[exemplo]],
+                      alpha = alphas[exemplo],
+                      type = "density"))
   
 }
 
 
 
-estimacao1$density
+estimacao1
 
 ## Funcao de densidade
-plot(tempo.surv, estimacao1$density, type = 'l', lwd = 3,
-     ylab = "Função Densidade", xlab ="Tempo")
-lines(tempo.surv, estimacao2$density, col = 'red', lwd = 3)
-lines(tempo.surv, estimacao3$density, col = 'green', lwd = 3)
-lines(tempo.surv, estimacao4$density, col = 'blue', lwd = 3)
+plot(tempo.surv, estimacao1, type = 'l', lwd = 3,
+     ylab = "Fun??o Densidade", xlab ="Tempo")
+lines(tempo.surv, estimacao2, col = 'red', lwd = 3)
+lines(tempo.surv, estimacao3, col = 'green', lwd = 3)
+lines(tempo.surv, estimacao4, col = 'blue', lwd = 3)
 
 lambda1 = c(0.2, 0.4, 0.4, 0.1)
 lambda2 = c(0.7, 0.1, 0.6, 0.4)
@@ -143,13 +145,69 @@ legend("topright", legend = expression(\lambda_1 = 0,2, \lambda_1 = 0,7, \alpha 
        bty = 'n')
 
 ## Funcao de hazard
-estimacao1$hazard
 
-plot(tempo.surv, estimacao1$hazard, type = 'l', lwd = 3,
-     ylab = "Função Taxa de Falha", xlab ="Tempo", ylim = c(0,1))
-lines(tempo.surv, estimacao2$hazard, col = 'red', lwd = 3)
-lines(tempo.surv, estimacao3$hazard, col = 'green', lwd = 3)
-lines(tempo.surv, estimacao4$hazard, col = 'blue', lwd = 3)
+par(mfrow = c(1,2))
+
+## For loop para todos os casos
+
+for (exemplo in 1:4){
+  variavel =  paste0("estimacaoPE",exemplo)
+  assign(variavel, PE(time = tempo.surv,
+                      cuts = median(tempo.surv), 
+                      levels= taxas[[exemplo]],
+                      type = "density"))
+  
+}
+
+
+plot(tempo.surv, estimacaoPE1, type = 'l', lwd = 3,
+     ylab = "FunÃ§Ã£o Taxa de Falha", xlab ="Tempo", ylim = c(0,1),
+     main = "Exponencial por Partes")
+lines(tempo.surv, estimacaoPE2, col = 'red', lwd = 3)
+lines(tempo.surv, estimacaoPE3, col = 'green', lwd = 3)
+lines(tempo.surv, estimacaoPE4, col = 'blue', lwd = 3)
+
+lambda1 = c(0.2, 0.4, 0.4, 0.1)
+lambda2 = c(0.7, 0.1, 0.6, 0.4)
+alpha =   c(0.8, 0.8, 1.0, 1.5)
+
+
+legend('topright', 
+       legend=TeX(sprintf(r'($\lambda_1 = %f, lambda_2 = %f)', 
+                          lambda1, lambda2)), 
+       lwd=c(3,3,3,3), 
+       col=c('black', 'red', 'green', 'blue'), bty = 'n')
+
+
+
+for (exemplo in 1:4){
+  variavel =  paste0("estimacao",exemplo)
+  assign(variavel, PPE(time = tempo.surv,
+                       cuts = median(tempo.surv), 
+                       levels= taxas[[exemplo]],
+                       alpha = alphas[exemplo],
+                       type = "density"))
+  
+}
+
+
+plot(tempo.surv, estimacao1, type = 'l', lwd = 3,
+     ylab = "FunÃ§Ã£o Taxa de Falha", xlab ="Tempo", ylim = c(0,1),
+     main = "Exponencial por Partes PotÃªncia")
+lines(tempo.surv, estimacao2, col = 'red', lwd = 3)
+lines(tempo.surv, estimacao3, col = 'green', lwd = 3)
+lines(tempo.surv, estimacao4, col = 'blue', lwd = 3)
+
+lambda1 = c(0.2, 0.4, 0.4, 0.1)
+lambda2 = c(0.7, 0.1, 0.6, 0.4)
+alpha =   c(0.8, 0.8, 1.0, 1.5)
+
+legend('topright', 
+       legend=TeX(sprintf(r'($\lambda_1 = %f, lambda_2 = %f, alpha = %f$)', 
+                          lambda1, lambda2, alpha)), 
+       lwd=c(3,3,3,3), 
+       col=c('black', 'red', 'green', 'blue'), bty = 'n')
+
 
 
 ## Funcao de Log-Verossimilhanca para censura a direita

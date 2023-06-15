@@ -85,9 +85,9 @@ gen.mepp <- function(lambda.par=lambda.par, alpha.par=alpha.par, grid.vet=grid.v
 }
 
 
-sim.std.cure.ICdata <- function(n=n, lambda.par=lambda.par, alpha.par=alpha.par, 
-                                grid.vet=grid.vet, beta.par=beta.par, lambda.parc=lambda.parc, 
-                                theta.par = c(1, 0.5, 0), A = 5, B = 15){
+sim.std.cure.ICdata <- function(n, lambda.par, alpha.par, 
+                                grid.vet, beta.par, lambda.parc, 
+                                theta.par, A = 5, B = 15){
   
   
   ########################################################
@@ -131,7 +131,8 @@ sim.std.cure.ICdata <- function(n=n, lambda.par=lambda.par, alpha.par=alpha.par,
   
   #-- Cure probability mixture model:
   
-  elinpred <- exp(-theta.par%*%t(X_cure))
+  
+  elinpred <- exp(-1*(X_cure%*%theta.par))
   probY <- 1/(1+elinpred)
   Y <- rbinom(n, size=1, prob=probY)
   
@@ -200,39 +201,47 @@ SpopMEPP <- function(t=t, lambda.par=lambda.par, alpha.par=alpha.par, grid.vet=g
   
   S_MEPP <- as.numeric(exp(-cal_Ht_MEPP(time.obs=t, lambda.par=lambda.par, alpha.par=alpha.par, grid.vet=grid.vet)*exp(x.risk%*%beta.par)))
   
-  elinpred <- as.numeric(exp(1*(x.cure%*%theta.par)))
+  elinpred <- as.numeric(exp(-1*(x.cure%*%theta.par)))
   probY    <- 1/(1+elinpred)
-  spop     <- probY+(1-probY)*S_MEPP
+  spop     <- (1-probY)+(probY*S_MEPP)
   return(spop)
 }
 
 
-loglikIC <- function(a, l=l, r=r, x.cure=x.cure, x.risk=x.risk, grid.vet=grid.vet){
+loglikIC <- function(par, l, r, x.cure, x.risk, grid){
   
-  npar <- length(a)
-  b <- length(grid.vet)+1
+  b <- length(grid)+1
   
-  hazards = a[1:b] ## taxas de falha para os b intervalos
-  alpha = a[b + 1] ## parametro de potencia
+  hazards = par[1:b] ## taxas de falha para os b intervalos
+  alpha = par[b + 1] ## pparrametro de potencia
   
-  n.cov.cure = dim(x.cure)[2] ## numero de covariaveis com fracao de cura, para risco tiramos um (beta0)
-  n.cov.risk = dim(x.risk)[2] ## numero de covariaveis com fracao de cura, para risco tiramos um (beta0)
+  n.cov.cure = dim(x.cure)[2] 
+  n.cov.risk = dim(x.risk)[2] 
   
-  betas.cure = a[(b + 2):(b + 1 + n.cov.cure)]
-  betas.risk = a[(b + 2 + n.cov.cure):(b + 1 + n.cov.cure + n.cov.risk)]
+  betas.cure = par[(b + 2):(b + 1 + n.cov.cure)]
+  betas.risk = par[(b + 2 + n.cov.cure):(b + 1 + n.cov.cure + n.cov.risk)]
   n.sample <- nrow(x.cure)
   
-  cens <- ifelse(is.finite(r), 1, 0)
+  delta <- ifelse(is.finite(r), 1, 0)
   
   lik <- rep(0, n.sample)
-  p2 <- SpopMEPP(t=l[cens==1], lambda.par=hazards, alpha.par=alpha, grid.vet=grid.vet, beta.par=betas.risk, theta.par=betas.cure, x.cure=x.cure[cens==1,], x.risk=x.risk[cens==1,])
-  p1 <- SpopMEPP(t=r[cens==1], lambda.par=hazards, alpha.par=alpha, grid.vet=grid.vet, beta.par=betas.risk, theta.par=betas.cure, x.cure=x.cure[cens==1,], x.risk=x.risk[cens==1,])
   
-  lik[cens==1] <- p2-p1
-  p1 <- SpopMEPP(t=l[cens==0], lambda.par=hazards, alpha.par=alpha, grid.vet=grid.vet, beta.par=betas.risk, theta.par=betas.cure, x.cure=x.cure[cens==0,], x.risk=x.risk[cens==0,])
-  lik[cens==0] <- p1
+  spop.l <- SpopMEPP(t=l[delta==1], lambda.par=hazards, alpha.par=alpha,
+                     grid.vet=grid, beta.par=betas.risk, theta.par=betas.cure,
+                     x.cure=x.cure[delta==1,], x.risk=x.risk[delta==1,])
   
-  return(sum(log(lik)))
+  spop.r <- SpopMEPP(t=r[delta==1], lambda.par=hazards, alpha.par=alpha,
+                     grid.vet=grid, beta.par=betas.risk, theta.par=betas.cure,
+                     x.cure=x.cure[delta==1,], x.risk=x.risk[delta==1,])
+  
+  lik[delta==1] <- spop.l-spop.r
+  
+  spop.l2 <- SpopMEPP(t=l[delta==0], lambda.par=hazards, alpha.par=alpha,
+                      grid.vet=grid, beta.par=betas.risk, theta.par=betas.cure,
+                      x.cure=x.cure[delta==0,], x.risk=x.risk[delta==0,])
+  lik[delta==0] <- spop.l2
+  
+  return(-1*sum(log(lik)))
 }
 
 
@@ -281,8 +290,24 @@ time.grid.interval <- function(li=li, ri=ri, type=type, bmax=bmax){
 ## ajuste do modelo exponencial por partes potencia 
 ## em censura intervalar e fracao de curados
 
-fit.mepp.cf = function(L, R, delta){
+fit.mepp.cf = function(L, R, n.int, cov.risco, cov.cura, start){
   
+  ## extracao do grid observado
+  
+  grid.obs=time.grid.interval(li=L, ri=R, type="OBS", bmax= n.int)
+  grid.obs=grid.obs[-c(1, length(grid.obs))]
+  
+  est <- optim(par = start, fn=loglikIC, gr = NULL, method = "BFGS",
+               control=list(fnscale=1), hessian = TRUE, l=L, 
+               r=R, x.cure=cov.cura, x.risk=cov.risco, grid=grid.obs)
+  
+  estimated = est$par
+  hessian = est$hessian
+  loglik = est$value
+  
+  results = list(estimated = estimated, hessian = hessian, loglik = loglik)
+  
+  return(results)
 }
 
 

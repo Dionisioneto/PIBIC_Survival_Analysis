@@ -5,12 +5,16 @@
 ### -------
 
 ## propostas para o modelo Weibull, MEP e MEPP
-
+rm(list=ls())
 
 if(!require(pacman)) install.packages("pacman"); library(pacman)
-p_load(icenReg)
+p_load(icenReg, ReIns)
 
 #setwd('C:\\Users\\Dionisio\\Desktop\\Dionisio_Neto\\PIBIC_Survival_Analysis\\dados_para_teste')
+source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
+source('C:/Users/NetoDavi/Desktop/survival_pibic/supervisor_functions.r')
+
+
 setwd("C:/Users/NetoDavi/Desktop/survival_pibic/dados_para_teste")
 ## hemofilia_icens
 hemo.icens = read.table('hemofilia_icens.txt', header = T)
@@ -20,25 +24,34 @@ head(hemo.icens)
 
 colnames(hemo.icens)
 
+hemo.icens$L= hemo.icens$L/30
+hemo.icens$R = hemo.icens$R/30
+
 ## covariaveis: NoDose, Medium, High
 
 ## estimador de turnbull ou Non-Parametric Maximum Likelihood Estimator (NPMLE)
 
-turnbull_fit = ic_np(cbind(L, R)~0, data = hemo.icens)
+turnbull_fit = ic_np(cbind(L, R)~0, data = hemo.icens, B = c(1,1))
 
-plot(turnbull_fit)
+plot(turnbull_fit, lwd = 2, bty = 'n', survRange = c(0,100), axes = F,
+     ylab = "Probabilidade de Sobrevivência",
+     xlab = "Tempo de Sobrevivência (Dias)")
+#Criando o novo eixo-x contendo valores incrementados de 1 em 1
+axis(side=1, at=seq(1,58,4), labels=seq(1,58,4), cex.axis=0.7)
 
-## ---
+#Criando o novo eixo-y contendo valores incrementados de 10 em 10
+axis(side=2, at=seq(0,1,0.1), labels=seq(0,1,0.1), cex.axis=0.7)
+
+
 ## Ajuste do modelo Weibull aos dados
 ## ---
 
-weibull = ic_par(formula = cbind(L, R) ~ High, data = hemo.icens,
+weibull = ic_par(formula = cbind(L, R) ~ NoDose, data = hemo.icens,
        model = "ph", dist = "weibull")
 
 weibull$coefficients
 
-plot(weibull)
-
+#plot(weibull)
 
 AIC.surv(loglik = weibull$llk, n.param = 3)
 BIC.surv(loglik = weibull$llk, n.param = 3, n.sample = dim(hemo.icens)[1])
@@ -53,28 +66,27 @@ HC.surv(loglik = weibull$llk, n.param = 3,n.sample = dim(hemo.icens)[1])
 
 ## Modelo Proposto (MEPP + fracao de cura)
 
-hemo.icens$L = hemo.icens$L + 0.00001
-hemo.icens$R = hemo.icens$R + 0.000011
 
-
-n.intervalos = 2
+n.intervalos = 3
 
 chute = c(rep(0.1,n.intervalos),
-          0.8,
-          1.2,0.1,
+          1,
+          1,0.1,
           0.1)
 
-
-mepp.tent.hemo = fit.mepp.cf(L = hemo.icens$L, R = hemo.icens$R, n.int = n.intervalos,
-                        cov.risco = cbind(hemo.icens$NoDose),
-                        cov.cura = cbind(1, hemo.icens$NoDose),
-                        start = chute)
+mepp.tent.hemo = fit.mepp.cf(L = hemo.icens$L , R = hemo.icens$R, 
+                             n.int = n.intervalos,
+                            cov.risco = cbind(hemo.icens$NoDose),
+                            cov.cura = cbind(1,hemo.icens$NoDose),
+                            start = chute)
 
 AIC.surv(loglik = mepp.tent.hemo$loglik, n.param = length(mepp.tent.hemo$estimated))
 
-BIC.surv(loglik = mepp.tent.hemo$loglik, n.param = 3, n.sample = dim(hemo.icens)[1])
+BIC.surv(loglik = mepp.tent.hemo$loglik, n.param = length(mepp.tent.hemo$estimated), n.sample = dim(hemo.icens)[1])
 
-HC.surv(loglik = mepp.tent.hemo$loglik, n.param = 3, n.sample = dim(hemo.icens)[1])
+HC.surv(loglik = mepp.tent.hemo$loglik, n.param = length(mepp.tent.hemo$estimated), n.sample = dim(hemo.icens)[1])
+
+#mepp.tent.hemo$estimated
 
 ## breast cancer
 
@@ -84,8 +96,8 @@ dim(breast)
 head(breast)
 
 
-breast$left = breast$left + 0.0000010
-breast$right = breast$right + 0.0000011
+breast$left = breast$left/7
+breast$right = breast$right/7
 
 breast$right = ifelse(is.na(breast$right), Inf, breast$right)
 
@@ -108,14 +120,14 @@ plot(weibull.breast)
 
 
 AIC.surv(loglik = weibull.breast$llk,
-         n.param = length(mepp.tent.breast$estimated))
+         n.param = length(weibull.breast$coefficients))
 
 BIC.surv(loglik = weibull.breast$llk,
-         n.param = length(mepp.tent.breast$estimated),
+         n.param = length(weibull.breast$coefficients),
          n.sample = dim(breast)[1])
 
 HC.surv(loglik = weibull.breast$llk,
-        n.param = length(mepp.tent.breast$estimated),
+        n.param = length(weibull.breast$coefficients),
         n.sample = dim(breast)[1])
 
 
@@ -123,9 +135,9 @@ HC.surv(loglik = weibull.breast$llk,
 
 n.intervalos = 15
 
-for (int in 2:15){
+for (int in 10:15){
   
-  n.intervalos = int
+  n.intervalos = 15
   
   chute = c(rep(0.1,n.intervalos),
             0.8,
@@ -242,7 +254,7 @@ n_cigarros = smoke2009$F10Cigs_pad # Numero de cigarros fumados por dia, normali
 duracao_dependente = smoke2009$Duration_pad # Duracao como dependente, normalizado
 sexo = smoke2009$SexF
 
-covariaveis = cbind(tratamento, sexo)
+covariaveis = cbind(tratamento, sexo, n_cigarros, duracao_dependente)
 
 ## ---
 ## modelo exponencial por partes com fracao de cura
@@ -261,13 +273,15 @@ covariaveis = cbind(tratamento, sexo)
 
 n.intervalos = 4
 
-chute = c(rep(0.1, n.intervalos),
-          2,
-          1.2,0.1,0.2,
-          0.4,0.1)
+chute = c(rep(0.5, n.intervalos),
+          10,
+          1.2,0.1,0.1,0.1,0.1,
+          0.1,0.1,0.1,0.1)
   
 
-mepp.tent = fit.mepp.cf(L = smoke2009$Timept1, R = smoke2009$Timept2, n.int = n.intervalos,
+mepp.tent = fit.mepp.cf(L = smoke2009$Timept1,
+                        R = smoke2009$Timept2,
+                        n.int = n.intervalos,
                         cov.risco = covariaveis,
                         cov.cura = cbind(1, covariaveis),
                         start = chute)
@@ -373,7 +387,7 @@ HC.surv(loglik = a.weibull$llk, n.param = length(a.weibull$coefficients),n.sampl
 ## beta.cura = 4
 ## beta.risco = 3
 
-numero.intervalos = 3
+numero.intervalos = 2
 
 chute = c(rep(0.1,numero.intervalos),
           1,
@@ -384,7 +398,10 @@ gr_pad = (aneurysm$gr - mean(aneurysm$gr))/sd(aneurysm$gr) ## precisa normalizar
 
 covariaveis.aneurysm = cbind(aneurysm$mo, gr_pad, aneurysm$lok)
 
-mepp.tent = fit.mepp.cf(L = aneurysm$t.left, R = aneurysm$t.right, n.int = numero.intervalos,
+a.l = aneurysm$t.left
+a.r = aneurysm$t.right
+
+mepp.tent = fit.mepp.cf(L = a.l, R = a.r, n.int = numero.intervalos,
                         cov.risco = covariaveis.aneurysm,
                         cov.cura = cbind(1, covariaveis.aneurysm),
                         start = chute)
@@ -479,7 +496,7 @@ HC.surv(loglik = aidsz.weibull$llk, n.param = length(aidsz.weibull$coefficients)
 ## beta.cura = 3
 ## beta.risco = 2
 
-numero.intervalos = 15
+numero.intervalos = 2
 
 chute = c(rep(0.1,numero.intervalos ),
           1,
@@ -488,11 +505,11 @@ chute = c(rep(0.1,numero.intervalos ),
 
 covariaveis.Z = cbind(aidscohort$age, aidscohort$group)
 
-llz = as.numeric(aidscohort$L.Z) + 0.0000010
-rrz = as.numeric(aidscohort$R.Z) + 0.0000011
+llz = as.numeric(aidscohort$L.Z)/7 
+rrz = as.numeric(aidscohort$R.Z)/7 
 
 mepp.tent.z = fit.mepp.cf(L = llz, R = rrz, n.int = numero.intervalos ,
-                        cov.risco = covariaveis.Z ,
+                        cov.risco = covariaveis.Z,
                         cov.cura = cbind(1, covariaveis.Z ),
                         start = chute)
 
@@ -562,8 +579,115 @@ HC.surv(mepp.tent.y$loglik, n.param = length(mepp.tent.y$estimated),
         n.sample = dim(aidscohort)[1])
 
 
+## ---------------------------------------------------------------
+## dados HIV_SUM_set2 
+## ---------------------------------------------------------------
 
 
+hiv2 = read.table('HIV_SUM_set2.txt', header = T)
+
+dim(hiv2)
+head(hiv2) 
+
+
+## ----
+## Analise descritiva dos dados
+## estimador de turnbull ou Non-Parametric Maximum Likelihood Estimator (NPMLE)
+## ----
+
+npmle_fit_hiv2 <- ic_np(cbind(Li, Ri) ~ 0,
+                          data = hiv2)
+
+plot(npmle_fit_hemo_teste) ## temos o plato !!
+
+left = hiv2$Li + 0.000001
+rigth = hiv2$Ri + 0.000002
+cov = hiv2$DoseType
+  
+intervalos = 7
+
+chute = c(rep(0.1,intervalos),
+          1,
+          1.2,0.1,
+          0.1)
+
+mepp.tentativa.hemo = fit.mepp.cf(L = left, R = rigth , n.int = intervalos,
+                          cov.risco = cbind(cov), cov.cura = cbind(1, cov),
+                          start = chute)
+
+mepp.tentativa.hemo$estimated
+
+
+## ---------------------------------------------------------------
+## dados yoghurt_icensBKL 
+## ---------------------------------------------------------------
+
+
+yoghurt = read.table('yoghurt_icensBKL.txt', header = T)
+
+dim(yoghurt)
+head(yoghurt) 
+
+yoghurt$left = ifelse(is.na(yoghurt$left), 0, yoghurt$left)
+yoghurt$right = ifelse(is.na(yoghurt$right), Inf, yoghurt$right)
+
+## ----
+## Analise descritiva dos dados
+## estimador de turnbull ou Non-Parametric Maximum Likelihood Estimator (NPMLE)
+## ----
+
+npmle_fit_yoghurt <- ic_np(cbind(left, right) ~ 0,
+                        data = yoghurt, B = c(1,1))
+
+plot(npmle_fit_yoghurt) ## temos o plato !!
+
+## ------
+## O modelo Weibull
+## ------
+
+yoghurt.weibull = ic_par(formula = cbind(left, right) ~ (adult),
+                       data = yoghurt, model = "ph", dist = "weibull")
+
+yoghurt.weibull$coefficients
+
+AIC.surv(loglik = yoghurt.weibull$llk,
+         n.param = length(yoghurt.weibull$coefficients))
+
+BIC.surv(loglik = yoghurt.weibull$llk,
+         n.param = length(yoghurt.weibull$coefficients),
+         n.sample = dim(yoghurt)[1])
+
+HC.surv(loglik = yoghurt.weibull$llk,
+        n.param = length(yoghurt.weibull$coefficients),
+        n.sample = dim(yoghurt)[1])
+
+
+intervalos = 7
+
+chute = c(rep(0.1,intervalos),
+          1,
+          1.2,0.1,
+          0.1)
+
+
+mepp.tentativa.yoghurt = fit.mepp.cf(L = yoghurt$left, R = yoghurt$right ,
+                                  n.int = intervalos,
+                                  cov.risco = cbind(yoghurt$adult),
+                                  cov.cura = cbind(1, yoghurt$adult),
+                                  start = chute)
+
+mepp.tentativa.yoghurt$estimated
+
+AIC.surv(loglik = mepp.tentativa.yoghurt$loglik,
+         n.param = length(mepp.tentativa.yoghurt$estimated))
+
+BIC.surv(loglik = mepp.tentativa.yoghurt$loglik,
+         n.param = length(mepp.tentativa.yoghurt$estimated),
+         n.sample = dim(yoghurt)[1])
+
+HC.surv(loglik = mepp.tentativa.yoghurt$loglik,
+        n.param = length(mepp.tentativa.yoghurt$estimated),
+        n.sample = dim(yoghurt)[1])
 
 
 

@@ -129,7 +129,7 @@ PPE = function(time, cuts, levels, alpha, type = "survival"){
   s1.t = 1 - F1.t
   
   ## funcao taxa de falha do PPE
-  h1.t = f1.t/s1.t
+  h1.t = f1.t/(1-F1.t)
   
   ## taxa de falha acumulada do PPE
   H1.t = -log(s1.t)

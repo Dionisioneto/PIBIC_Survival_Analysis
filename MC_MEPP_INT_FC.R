@@ -6,13 +6,14 @@
 ################################################
 ## Date: 27/05/2023                           ##
 ################################################
+rm(list=ls())
 
 source("C:/Users/NetoDavi/Desktop/survival_pibic/supervisor_functions.r")
 
 if(!require(pacman)) install.packages("pacman"); library(pacman)
 p_load(icenReg, eha)
 
-n <- 500 # Tamanho amostral
+n <- 100 # Tamanho amostral
 
 #--- Parametros do modelo:
 
@@ -21,9 +22,9 @@ lambda.f  <- c(1.1, 0.3, 0.9)
 n.intervals <- length(lambda.f)
 grid.time <- c(0.5, 2)
 beta.f    <- c(-0.5, 0.8)
-#beta.f    <- 0
 
-beta.c    <- c(1.2, 0.5, -0.5)
+
+beta.c    <- c(1.2, 0.3, -0.5)
 lambda.c <- 1
 
 Theta = c(lambda.f, alpha.f,beta.c,beta.f)
@@ -37,7 +38,7 @@ npar <- length(c(lambda.f, alpha.f,beta.c, beta.f))
 
 iter.error = c()
 
-samp <- 200
+samp <- 600
 i = 1
 
 est  <- matrix(NA, ncol=npar, nrow=samp)
@@ -51,13 +52,12 @@ prop.cura = matrix(data = 0, nrow = samp,
                    ncol = 2)
 
 
-
 while(i <= samp) {
   result = tryCatch({
     cat("Realizando iteracao: ", i, "/", samp, "\n", sep = "")
     dadosIC <- sim.std.cure.ICdata(n=n, lambda.par=lambda.f, alpha.par=alpha.f, 
                                    grid.vet=grid.time, beta.par= beta.f, lambda.parc=1, 
-                                   theta.par = beta.c , A = 0.4, B =22)
+                                   theta.par = beta.c , A = 5, B =15)
     
     
     x.f <- cbind(x1=dadosIC$xi1, x2=dadosIC$xi2)
@@ -68,15 +68,15 @@ while(i <= samp) {
     chutes = c(rep(0.1, length(lambda.f)), 1, 1, 0.5, 0.5, 0.5, 0.5)
     
     test <- optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
-                  control=list(fnscale=-1), hessian = TRUE, l=dadosIC$L, 
-                  r=dadosIC$R, x.cure=x.c, x.risk=x.f, grid.vet=grid.obs)
+                  control=list(fnscale=1), hessian = TRUE, l=dadosIC$L, 
+                  r=dadosIC$R, x.cure=x.c, x.risk=x.f, grid=grid.obs)
     
     est[i,] <- test$par
     prop.cens[i,] = prop.table(table(dadosIC$delta))
     prop.cura[i,] = prop.table(table(dadosIC$Y))
     
     
-    vetor.ep = sqrt(diag(solve(-test$hessian)))
+    vetor.ep = sqrt(diag(solve(test$hessian)))
     
     
     i  = i+1
@@ -112,7 +112,7 @@ for(i in 1: samp){
   cat("Realizando iteracao: ", i, "/", samp, "\n", sep = "")
   dadosIC <- sim.std.cure.ICdata(n=n, lambda.par=lambda.f, alpha.par=alpha.f,
                                  grid.vet=grid.time, beta.par= beta.f, lambda.parc=1,
-                                 theta.par = beta.c , A = 1.5, B = 22.5)
+                                 theta.par = beta.c , A = 5, B = 15)
   
   
   x.f <- cbind(x1=dadosIC$xi1, x2=dadosIC$xi2)
@@ -123,15 +123,16 @@ for(i in 1: samp){
   chutes = c(rep(0.1, length(lambda.f)), 1, 1, 0.5, 0.5, 0.5, 0.5)
   
   test <- optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
-                control=list(fnscale=-1), hessian = TRUE, l=dadosIC$L,
-                r=dadosIC$R, x.cure=x.c, x.risk=x.f, grid.vet=grid.obs)
+                control=list(fnscale=1), hessian = TRUE, l=dadosIC$L, 
+                r=dadosIC$R, x.cure=x.c, x.risk=x.f, grid=grid.obs)
+  
   
   est[i,] <- test$par
   prop.cens[i,] = prop.table(table(dadosIC$delta))
   prop.cura[i,] = prop.table(table(dadosIC$Y))
   
   
-  vetor.ep = sqrt(diag(solve(-test$hessian)))
+  vetor.ep = sqrt(diag(solve(test$hessian)))
   matrix.ep[i,] = vetor.ep
 }
 
@@ -182,8 +183,11 @@ boxplot(prop.cura[,1], ylim = c(0,1))
 summary(prop.cens[,1])
 boxplot(prop.cens[,1], ylim = c(0,1))
 
-#setwd('C:\\Users\\NetoDavi\\Desktop\\survival_pibic')
-#write.csv2(x = matriz.resultados, file = "resultado2_n1000.csv")
+setwd('C:\\Users\\NetoDavi\\Desktop\\survival_pibic')
+write.csv2(x = matriz.resultados, file = "resultado2_n100.csv")
+
+prop.cura.cens = rbind(summary(prop.cura[,1]), summary(prop.cens[,1]))
+write.csv2(x = prop.cura.cens, file = "prop_cura_cens2_n100.csv")
 
 ## histogramas
 par(mfrow=c(3,3), mai = c(0.6, 0.6, 0.2, 0.1))
@@ -260,26 +264,13 @@ qqline(est[,9], col = "steelblue", lwd = 2)
 ## -----
 library(ReIns)
 
-n = 500
+n = 50
 
 dadosIC <- sim.std.cure.ICdata(n=n, lambda.par=lambda.f, alpha.par=alpha.f, 
                                grid.vet=grid.time, beta.par= beta.f, lambda.parc=lambda.c, 
-                               theta.par = beta.c , A = 1.4, B =22)
+                               theta.par = beta.c , A = 5, B =20)
 
 prop.table(table(dadosIC$delta))
-
-tempo.aval = seq(0,2.5,0.1)
-
-trnb.fit = Turnbull(x = tempo.aval, L = dadosIC$L, R = dadosIC$R,
-                    censored = dadosIC$delta)
-
-
-
-par(mfrow=c(1,2))
-
-plot(tempo.aval, trnb.fit$surv, type = "s", 
-     ylab = "Estimador de Turnbull para S(t)")
-
 
 
 turnbull_fit = ic_np(cbind(L, R)~0, data = dadosIC)
@@ -291,25 +282,6 @@ plot(turnbull_fit)
 ## ajuste do modelo exponencial por partes potencia 
 ## em censura intervalar e fracao de curados
 
-fit.mepp.cf = function(L, R, n.int, cov.risco, cov.cura, start){
-  
-  ## extracao do grid observado
-  
-  grid.obs=time.grid.interval(li=L, ri=R, type="OBS", bmax= n.int)
-  grid.obs=grid.obs[-c(1, length(grid.obs))]
-
-  est <- optim(par = start, fn=loglikIC, gr = NULL, method = "BFGS",
-                control=list(fnscale=-1), hessian = TRUE, l=L, 
-                r=R, x.cure=cov.cura, x.risk=cov.risco, grid.vet=grid.obs)
-  
-  estimated = est$par
-  hessian = est$hessian
-  loglik = est$value
-  
-  results = list(estimated = estimated, hessian = hessian, loglik = loglik)
-  
-  return(results)
-}
 
 mepp.tent = fit.mepp.cf(L = dadosIC$L, R = dadosIC$R, n.int = 3,
             cov.risco = cbind(x1=dadosIC$xi1, x2=dadosIC$xi2),

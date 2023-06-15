@@ -19,13 +19,14 @@ aidsCohort_icensBKL
 
 thooth - não apresenta o platô para a populacao de curados
 
-yoghurt_icensBKL - tem apenas uma covariavel
+diabetes_glrt - tem apenas uma covariavel #nao temos o platô!!
 
-HIV_SUM_set2 - tem apenas uma covariavel
+yoghurt_icensBKL - tem apenas uma covariavel ## na esta vencendo da weibull
 
-hemofilia_icens_teste - tem apenas uma covariavel
+HIV_SUM_set2 - tem apenas uma covariavel ## nao esta convergindo
 
-diabetes_glrt - tem apenas uma covariavel
+hemofilia_icens_teste - tem apenas uma covariavel, mesmo que os dados de hemofilia
+
 
 breast_cancer - nao tem informacoes de l e r
 
