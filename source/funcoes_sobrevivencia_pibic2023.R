@@ -26,8 +26,8 @@ p_load(eha)
 ## (n) e maior que pelo menos 40 vezes o numero de 
 ## parametros (p)
 
-AIC.surv = function(loglik, n.param) {
-  aic_formula = 2*(n.param - loglik)
+AIC.surv = function(loglik, n.param, n.sample) {
+  aic_formula = (-2*loglik) + (2*n.param) + ((2*(n.param+2)*(n.param+3))/(n.sample-n.param-3))
   return(aic_formula)
 }
 

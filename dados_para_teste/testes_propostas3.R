@@ -58,13 +58,14 @@ for (int in 3:15){
   x.f <- cbind(x1=dadosIC$xi1, x2=dadosIC$xi2)
   x.c <- cbind(1, x1=dadosIC$xi1, x2=dadosIC$xi2)
   
-  grid.obs=time.grid.interval(li=dadosIC$L, ri=dadosIC$R, type="OBS", bmax=length(lambda.f ))
+  grid.obs=time.grid.interval(li=dadosIC$L, ri=dadosIC$R, type="OBS", bmax=int)
   grid.obs=grid.obs[-c(1, length(grid.obs))]
-  chutes = c(rep(0.1, length(lambda.f)), 1, 1, 0.5, 0.5, 0.5, 0.5)
+  chutes = c(rep(0.1, int), 1, 1, 0.5, 0.5, 0.5, 0.5)
   
   test <- optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
                 control=list(fnscale=1), hessian = TRUE, l=dadosIC$L,
                 r=dadosIC$R, x.cure=x.c, x.risk=x.f, grid=grid.obs)
+  
   
   
   aic = AIC.surv(loglik = test$value,
@@ -79,6 +80,7 @@ for (int in 3:15){
                n.sample = dim(dadosIC)[1])
   
   print(paste("n intervalo", int))
+  print(test$par)
   print(paste("AIC: ", aic))
   print(paste("BIC: ", bic))
   print(paste("HC: ", hc))
@@ -183,7 +185,7 @@ sexo = smoke2009$SexF
 covariaveis = cbind(tratamento, sexo, n_cigarros, duracao_dependente)
 
 
-n.intervalos = 7
+n.intervalos = 3
 
 
 grid.obs=time.grid.interval(li=smoke2009$Timept1, ri=smoke2009$Timept2,
@@ -191,11 +193,10 @@ grid.obs=time.grid.interval(li=smoke2009$Timept1, ri=smoke2009$Timept2,
 
 grid.obs=grid.obs[-c(1, length(grid.obs))]
 
-chute = c(c(5,5,0.2,0.3,3,200,200),
-          100,
+chute = c(c(0.5,0.5,2),
+          10,
           1.2,0.1,0.1,0.1,0.1,
           0.1,0.1,0.1,0.1)
-
 
 
 est.mepp.smoke <- optim(par = chute, fn=loglikIC, gr = NULL, 

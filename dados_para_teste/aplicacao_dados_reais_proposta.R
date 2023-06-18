@@ -24,16 +24,16 @@ head(hemo.icens)
 
 colnames(hemo.icens)
 
-hemo.icens$L= hemo.icens$L/30
-hemo.icens$R = hemo.icens$R/30
+hemo.icens$L= hemo.icens$L/7
+hemo.icens$R = hemo.icens$R/7
 
 ## covariaveis: NoDose, Medium, High
 
 ## estimador de turnbull ou Non-Parametric Maximum Likelihood Estimator (NPMLE)
 
-turnbull_fit = ic_np(cbind(L, R)~0, data = hemo.icens, B = c(1,1))
+turnbull_fit = ic_np(cbind(L, R)~0, data = hemo.icens)
 
-plot(turnbull_fit, lwd = 2, bty = 'n', survRange = c(0,100), axes = F,
+plot(turnbull_fit, lwd = 2, bty = 'n', survRange = c(0,100),
      ylab = "Probabilidade de Sobrevivência",
      xlab = "Tempo de Sobrevivência (Dias)")
 #Criando o novo eixo-x contendo valores incrementados de 1 em 1
@@ -42,7 +42,7 @@ axis(side=1, at=seq(1,58,4), labels=seq(1,58,4), cex.axis=0.7)
 #Criando o novo eixo-y contendo valores incrementados de 10 em 10
 axis(side=2, at=seq(0,1,0.1), labels=seq(0,1,0.1), cex.axis=0.7)
 
-
+  
 ## Ajuste do modelo Weibull aos dados
 ## ---
 
@@ -53,38 +53,163 @@ weibull$coefficients
 
 #plot(weibull)
 
-AIC.surv(loglik = weibull$llk, n.param = 3)
+AIC.surv(loglik = weibull$llk, n.param = 3, n.sample = dim(hemo.icens)[1])
 BIC.surv(loglik = weibull$llk, n.param = 3, n.sample = dim(hemo.icens)[1])
 HC.surv(loglik = weibull$llk, n.param = 3,n.sample = dim(hemo.icens)[1])
 
+lines(weibull, col = 'red')
 
-
+## ------
 ## Modelo Exponencial por partes com censura intervalar
+## ------
+
+source('C:/Users/NetoDavi/Desktop/survival_pibic/mep_interval_fc.R')
+
+ll.hemo = hemo.icens$L/7
+rr.hemo = hemo.icens$R/7
+
+n.int = 7
+
+x.f <- cbind(hemo.icens$NoDose)
+x.c <- cbind(1, hemo.icens$NoDose)
+
+grid.obs=time.grid.interval(li=ll.hemo, ri=rr.hemo, type="OBS", 
+                            bmax=n.int)
+
+grid.obs=grid.obs[-c(1, length(grid.obs))]
+
+chutes = c(1,1,1,1,1,10,10,
+           1,0.5,
+           0.5)
 
 
-## Modelo Exponencial por partes com censura intervalar e fracao de cura
+max.mep.fc = optim(par = chutes, fn=loglikIC.MEP.fc,
+                   gr = NULL, method = "BFGS",
+                   control=list(fnscale=1),
+                   hessian = TRUE,
+                   l = ll.hemo, r = rr.hemo,
+                   x.cure=x.c, x.risk=x.f, 
+                   grid.vet=grid.obs)
+
+max.mep.fc$par
+
+AIC.surv(loglik = max.mep.fc$value*-1, n.param = length(max.mep.fc$par),
+         n.sample = dim(hemo.icens)[1])
+
+BIC.surv(loglik = max.mep.fc$value*-1, n.param = length(max.mep.fc$par),
+         n.sample = nrow(hemo.icens))
+
+HC.surv(loglik = max.mep.fc$value*-1, n.param = length(max.mep.fc$par),
+        n.sample = nrow(hemo.icens))
+
+l.turnbull = turnbull_fit$T_bull_Intervals[1,]
+r.turnbull = turnbull_fit$T_bull_Intervals[2,]
+
+
+
+spoprrh = SpopMEP(t = sort(rr.hemo,decreasing=T)/7, 
+                  lambda.par = max.mep.fc$par[1:7],
+                  grid.vet = grid.obs, theta.par = max.mep.fc$par[8:9],
+                  beta.par = max.mep.fc$par[10], 
+                  x.cure = x.c, x.risk = x.f)
+
+
+
+## Modelo Exponencial por partes potencia sem racaode cura
+source('C:/Users/NetoDavi/Desktop/survival_pibic/dados_para_teste/proposta_MEPP_int_sem_cura.R')
+ll.hemo = hemo.icens$L/7
+rr.hemo = hemo.icens$R/7
+
+n.int = 3
+
+x.f <- cbind(hemo.icens$NoDose)
+#x.c <- cbind(1, hemo.icens$NoDose)
+
+grid.obs=time.grid.interval(li=ll.hemo, ri=rr.hemo, type="OBS", 
+                            bmax=n.int)
+
+grid.obs=grid.obs[-c(1, length(grid.obs))]
+
+chutes = c(0.1,10,10,
+           5,
+           0.5)
+
+max.mepp.sfc = optim(par = chutes, fn=loglikIC.mepp.int,
+                   gr = NULL, method = "BFGS",
+                   control=list(fnscale=1),
+                   hessian = TRUE,
+                   l = ll.hemo, r = rr.hemo,
+                   x.cov=x.f, 
+                   grid=grid.obs)
+
+max.mepp.sfc$par
+
+AIC.surv(loglik = max.mepp.sfc$value*-1,
+         n.param = length(max.mepp.sfc$par),
+         n.sample = dim(hemo.icens)[1])
+
+BIC.surv(loglik = max.mepp.sfc$value*-1,
+         n.param = length(max.mepp.sfc$par),
+         n.sample = dim(hemo.icens)[1])
+
+HC.surv(loglik = max.mepp.sfc$value*-1,
+        n.param = length(max.mepp.sfc$par),
+        n.sample = dim(hemo.icens)[1])
+
+
+
 
 ## Modelo Proposto (MEPP + fracao de cura)
 
+ll.hemo = hemo.icens$L/7
+rr.hemo = hemo.icens$R/7
 
-n.intervalos = 3
 
-chute = c(rep(0.1,n.intervalos),
-          1,
-          1,0.1,
-          0.1)
+n.int = 3
 
-mepp.tent.hemo = fit.mepp.cf(L = hemo.icens$L , R = hemo.icens$R, 
-                             n.int = n.intervalos,
-                            cov.risco = cbind(hemo.icens$NoDose),
-                            cov.cura = cbind(1,hemo.icens$NoDose),
-                            start = chute)
+x.f <- cbind(hemo.icens$NoDose)
+x.c <- cbind(1, hemo.icens$NoDose)
 
-AIC.surv(loglik = mepp.tent.hemo$loglik, n.param = length(mepp.tent.hemo$estimated))
+grid.obs=time.grid.interval(li=ll.hemo, ri=rr.hemo, type="OBS", 
+                            bmax=n.int)
 
-BIC.surv(loglik = mepp.tent.hemo$loglik, n.param = length(mepp.tent.hemo$estimated), n.sample = dim(hemo.icens)[1])
+grid.obs=grid.obs[-c(1, length(grid.obs))]
 
-HC.surv(loglik = mepp.tent.hemo$loglik, n.param = length(mepp.tent.hemo$estimated), n.sample = dim(hemo.icens)[1])
+chutes = c(1,2,5,
+           2,
+           1,0.5,
+           0.5)
+
+max.mepp = optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
+                control=list(fnscale=1), hessian = TRUE,
+                l = ll.hemo, r = rr.hemo,
+                x.cure=x.c, x.risk=x.f, 
+                grid=grid.obs)
+
+max.mepp$par
+
+max.mepp$value
+
+AIC.surv(loglik = max.mepp$value*-1,
+         n.param = length(max.mepp$par),
+         n.sample = dim(hemo.icens)[1])
+
+BIC.surv(loglik = max.mepp$value*-1,
+         n.param = length(max.mepp$par),
+         n.sample = dim(hemo.icens)[1])
+
+HC.surv(loglik = max.mepp$value*-1,
+        n.param = length(max.mepp$par),
+        n.sample = dim(hemo.icens)[1])
+
+
+
+
+
+
+
+
+
 
 #mepp.tent.hemo$estimated
 
@@ -239,7 +364,7 @@ s.weibull = ic_par(formula = cbind(Timept1, Timept2) ~ (SIUC + F10Cigs + Duratio
 
 s.weibull$coefficients
 
-lines(s.weibull, col = 'red')
+#lines(s.weibull, col = 'red')
 
 
 AIC.surv(loglik = s.weibull$llk, n.param = 6)
@@ -256,11 +381,125 @@ sexo = smoke2009$SexF
 
 covariaveis = cbind(tratamento, sexo, n_cigarros, duracao_dependente)
 
+
+## ---
+## modelo exponencial por partes potencia (sem fracao de cura) 
+## [Santos Junior e Scneider (2022)]
+## ---
+
+source('C:/Users/NetoDavi/Desktop/survival_pibic/dados_para_teste/proposta_MEPP_int_sem_cura.R')
+#
+# n.int = 2
+# 
+# grid.obs=time.grid.interval(li=smoke2009$Timept1/7, ri=smoke2009$Timept2/7,
+#                             type="OBS", bmax= n.int)
+# 
+# grid.obs=grid.obs[-c(1, length(grid.obs))]
+# 
+# ## variaveis do estudo
+# 
+# tratamento = smoke2009$SIUC # Tipo de tratamento (SI/UC)
+# n_cigarros = smoke2009$F10Cigs_pad # Numero de cigarros fumados por dia, normalizado
+# duracao_dependente = smoke2009$Duration_pad # Duracao como dependente, normalizado
+# sexo = smoke2009$SexF
+# 
+# covariaveis = cbind(tratamento, sexo, n_cigarros, duracao_dependente)
+# 
+# 
+# chute = c(1,5,
+#           1,
+#           0.1,0.1,0.1,0.1)
+# 
+# mepp.est = optim(par = chute, fn=loglikIC.mepp.int,
+#                      gr = NULL,method = "BFGS",
+#                      control=list(fnscale=1),
+#                      hessian = TRUE,
+#                      l=smoke2009$Timept1/7,
+#                      r=smoke2009$Timept2/7,
+#                      x.cov=covariaveis,
+#                      grid=grid.obs)
+# 
+# mepp.est$par
+
+
+#mepp.est$hessian
+#mepp.est$value
+
+AIC.surv(loglik = mepp.est$value*-1,
+         n.param = length(mepp.est$par))
+
+BIC.surv(loglik = mepp.est$value*-1,
+         n.param = length(mepp.est$par),
+         n.sample = dim(smoke2009)[1])
+
+HC.surv(loglik = mepp.est$value*-1,
+        n.param = length(mepp.est$par),
+        n.sample = dim(smoke2009)[1])
+
+
 ## ---
 ## modelo exponencial por partes com fracao de cura
 ## ---
 
+source('C:/Users/NetoDavi/Desktop/survival_pibic/mep_interval_fc.R')
 
+covariaveis = cbind(tratamento, sexo, n_cigarros, duracao_dependente)
+
+n.int = 8
+
+grid.obs=time.grid.interval(l = smoke2009$Timept1, r = smoke2009$Timept2,
+                            type="OBS", bmax=n.int)
+
+grid.obs=grid.obs[-c(1, length(grid.obs))]
+
+
+chute = c(0.2,0.3,0.11,0.1,10,0.11,0.1,10,
+          1,0.3,0.1,0.1,0.1,
+          0.1,0.1,0.5,0.1)
+
+max.mep = optim(par = chute, fn=loglikIC.MEP.fc, gr = NULL, method = "BFGS",
+                control=list(fnscale=1), hessian = TRUE,
+                l = smoke2009$Timept1/7, r = smoke2009$Timept2/7,
+                x.cure=covariaveis, x.risk= cbind(1,covariaveis), 
+                grid.vet=(grid.obs/3)*2.2)
+
+max.mep$par
+#max.mep$hessian
+max.mep$value
+
+AIC.surv(loglik = max.mep$value*-1,
+         n.param = length(max.mep$par))
+
+BIC.surv(loglik = max.mep$value*-1,
+         n.param = length(max.mep$par),
+         n.sample = dim(smoke2009)[1])
+
+HC.surv(loglik = max.mep$value*-1,
+        n.param = length(max.mep$par),
+        n.sample = dim(smoke2009)[1])
+
+## ---
+## modelo exponencial por partes potencia sem fracao de cura
+## ---
+n.int = 5
+
+grid.obs=time.grid.interval(li=dadosIC$L, ri=dadosIC$R, type="OBS", 
+                            bmax=n.int)
+
+grid.obs=grid.obs[-c(1, length(grid.obs))]
+
+chutes = c(1,1,1,1,1,
+           1,
+           0.5,0.5)
+
+max.mepp.int = optim(par = chutes, fn=loglikIC.mepp.int,
+                     gr = NULL, method = "BFGS",
+                     control=list(fnscale=1), hessian = TRUE,
+                     l = dadosIC$L, r = dadosIC$R,
+                     x.cov=x.f, 
+                     grid=grid.obs)
+
+max.mepp.int$par
 
 ## ---
 ## modelo exponencial por partes potencia com fracao de cura
@@ -279,8 +518,8 @@ chute = c(rep(0.5, n.intervalos),
           0.1,0.1,0.1,0.1)
   
 
-mepp.tent = fit.mepp.cf(L = smoke2009$Timept1,
-                        R = smoke2009$Timept2,
+mepp.tent = fit.mepp.cf(L = smoke2009$Timept1/7,
+                        R = smoke2009$Timept2/7,
                         n.int = n.intervalos,
                         cov.risco = covariaveis,
                         cov.cura = cbind(1, covariaveis),
@@ -366,7 +605,9 @@ plot(npmle_fit_aneurysm) ## temos o plato !!
 
 # o z e indicador de censura 
 
-a.weibull = ic_par(formula = cbind(t.left, t.right) ~ (mo+gr+lok),
+aneurysm$gr_pad = (aneurysm$gr - mean(aneurysm$gr))/sd(aneurysm$gr)
+
+a.weibull = ic_par(formula = cbind(t.left, t.right) ~ (mo+gr_pad+lok),
                    data = aneurysm, model = "ph", dist = "weibull")
 
 a.weibull$coefficients
@@ -374,9 +615,16 @@ a.weibull$coefficients
 lines(a.weibull, col = 'red')
 
 
-AIC.surv(loglik = a.weibull$llk, n.param = length(a.weibull$coefficients))
-BIC.surv(loglik = a.weibull$llk, n.param = length(a.weibull$coefficients), n.sample = dim(aneurysm)[1])
-HC.surv(loglik = a.weibull$llk, n.param = length(a.weibull$coefficients),n.sample = dim(aneurysm)[1])
+AIC.surv(loglik = a.weibull$llk, 
+         n.param = length(a.weibull$coefficients))
+
+BIC.surv(loglik = a.weibull$llk,
+         n.param = length(a.weibull$coefficients),
+         n.sample = dim(aneurysm)[1])
+
+HC.surv(loglik = a.weibull$llk, 
+        n.param = length(a.weibull$coefficients),
+        n.sample = dim(aneurysm)[1])
 
 ## ---
 ## modelo exponencial por partes potencia com fracao de cura
@@ -387,13 +635,6 @@ HC.surv(loglik = a.weibull$llk, n.param = length(a.weibull$coefficients),n.sampl
 ## beta.cura = 4
 ## beta.risco = 3
 
-numero.intervalos = 2
-
-chute = c(rep(0.1,numero.intervalos),
-          1,
-          1.2,0.1,0.1,
-          0.1,0.1)
-
 gr_pad = (aneurysm$gr - mean(aneurysm$gr))/sd(aneurysm$gr) ## precisa normalizar para estimar
 
 covariaveis.aneurysm = cbind(aneurysm$mo, gr_pad, aneurysm$lok)
@@ -401,20 +642,34 @@ covariaveis.aneurysm = cbind(aneurysm$mo, gr_pad, aneurysm$lok)
 a.l = aneurysm$t.left
 a.r = aneurysm$t.right
 
-mepp.tent = fit.mepp.cf(L = a.l, R = a.r, n.int = numero.intervalos,
-                        cov.risco = covariaveis.aneurysm,
-                        cov.cura = cbind(1, covariaveis.aneurysm),
-                        start = chute)
+n.int = 8
 
-mepp.tent$estimated
-mepp.tent$loglik
+grid.obs=time.grid.interval(l = a.l, r = a.r,
+                            type="OBS", bmax=n.int)
 
-AIC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated))
+grid.obs=grid.obs[-c(1, length(grid.obs))]
 
-BIC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated),
+
+chute = c(5,10,5,5,5,5,5,5,
+          0.2,
+          1.2,0.1,0.1,0.1,
+          0.1,0.1,0.1)
+
+max.mepp.fc = optim(par = chute, fn=loglikIC, gr = NULL, method = "BFGS",
+                    control=list(fnscale=1), hessian = TRUE,
+                    l = a.l, r = a.r,
+                    x.cure= cbind(1,covariaveis.aneurysm),
+                    x.risk= covariaveis.aneurysm, 
+                    grid=grid.obs)
+
+max.mepp.fc$par
+
+AIC.surv(max.mepp.fc$value*-1,n.param = length(max.mepp.fc$par))
+
+BIC.surv(max.mepp.fc$value*-1, n.param = length(max.mepp.fc$par),
          n.sample = dim(aneurysm)[1])
 
-HC.surv(mepp.tent$loglik, n.param = length(mepp.tent$estimated),
+HC.surv(max.mepp.fc$value*-1, n.param = length(max.mepp.fc$par),
         n.sample = dim(aneurysm)[1])
 
 
@@ -465,7 +720,7 @@ plot(npmle_fit_aids_Y) ## temos o plato !!
 # ------------------------------------------------------------------------------
 
 npmle_fit_aids_Z <- ic_np(cbind(L.Z, R.Z) ~ 0,
-                          data = aidscohort)
+                          data = aidscohort, B = c(1,1))
 
 plot(npmle_fit_aids_Z) ## temos o plato!! Bem alto por sinal!
 
@@ -491,38 +746,36 @@ HC.surv(loglik = aidsz.weibull$llk, n.param = length(aidsz.weibull$coefficients)
 ## modelo exponencial por partes potencia com fracao de cura
 ## ---
 
-## lambda = 3
-## alpha = 1
-## beta.cura = 3
-## beta.risco = 2
 
-numero.intervalos = 2
+llz = as.numeric(aidscohort$L.Z) 
+rrz = as.numeric(aidscohort$R.Z) 
 
-chute = c(rep(0.1,numero.intervalos ),
-          1,
-          1.2,0.1,0.1,
-          0.1,0.1)
+cov.aidsz = cbind(aidscohort$age,aidscohort$group)
 
-covariaveis.Z = cbind(aidscohort$age, aidscohort$group)
+n.int = 2
 
-llz = as.numeric(aidscohort$L.Z)/7 
-rrz = as.numeric(aidscohort$R.Z)/7 
+grid.obs=time.grid.interval(l = llz, r = rrz,
+                            type="OBS", bmax=n.int)
 
-mepp.tent.z = fit.mepp.cf(L = llz, R = rrz, n.int = numero.intervalos ,
-                        cov.risco = covariaveis.Z,
-                        cov.cura = cbind(1, covariaveis.Z ),
-                        start = chute)
+grid.obs=grid.obs[-c(1, length(grid.obs))]
 
-mepp.tent.z$estimated
-mepp.tent.z$loglik
+chutes = c(2,6,
+           2,
+           1,0.1,0.1,
+           0.1,0.1)
 
-AIC.surv(mepp.tent.z$loglik, n.param = length(mepp.tent.z$estimated))
+max.mepp.fc = optim(par = chutes, fn=loglikIC, gr = NULL,
+                    method = "Nelder-Mead",
+                    control=list(fnscale=1), hessian = F,
+                    l = llz, r = rrz,
+                    x.cure= cbind(1,cov.aidsz),
+                    x.risk= cov.aidsz, 
+                    grid=grid.obs)
 
-BIC.surv(mepp.tent.z$loglik, n.param = length(mepp.tent.z$estimated),
-         n.sample = dim(aidscohort)[1])
 
-HC.surv(mepp.tent.z$loglik, n.param = length(mepp.tent.z$estimated),
-        n.sample = dim(aidscohort)[1])
+
+
+
 
 ## -----
 ## Analise e estimacao para os dados do caso Y 
@@ -546,37 +799,29 @@ HC.surv(loglik = aidsy.weibull$llk, n.param = length(aidsy.weibull$coefficients)
 ## modelo exponencial por partes potencia com fracao de cura
 ## ---
 
-## lambda = 2
-## alpha = 1
-## beta.cura = 4
-## beta.risco = 3
+aidsy.l = aidscohort$L.Y
+aidsy.r = aidscohort$R.Y
+cov.aidsy = cbind(aidscohort$age,aidscohort$group)
 
-numero.intervalos = 12
+n.int = 2
 
-chute = c(rep(0.1,numero.intervalos ),
-          1,
-          1.2,0.1,0.1,
+grid.obs=time.grid.interval(l = aidsy.l, r = aidsy.r,
+                            type="OBS", bmax=n.int)
+
+grid.obs=grid.obs[-c(1, length(grid.obs))]
+
+chutes = c(2,6,
+          2,
+          12,0.1,0.1,
           0.1,0.1)
 
-covariaveis.y = cbind(aidscohort$age, aidscohort$group)
-
-lly = as.numeric(aidscohort$L.Y) + 0.0000010
-rry = as.numeric(aidscohort$R.Y) + 0.0000011
-
-mepp.tent.y = fit.mepp.cf(L = lly , R = rry, n.int = numero.intervalos,
-                        cov.risco = covariaveis.y ,
-                        cov.cura = cbind(1, covariaveis.y),
-                        start = chute)
-mepp.tent.y$estimated
-mepp.tent.y$loglik
-
-AIC.surv(mepp.tent.y$loglik, n.param = length(mepp.tent.y$estimated))
-
-BIC.surv(mepp.tent.y$loglik, n.param = length(mepp.tent.y$estimated),
-         n.sample = dim(aidscohort)[1])
-
-HC.surv(mepp.tent.y$loglik, n.param = length(mepp.tent.y$estimated),
-        n.sample = dim(aidscohort)[1])
+max.mepp.fc = optim(par = chutes, fn=loglikIC, gr = NULL,
+                    method = "Nelder-Mead",
+                    control=list(fnscale=1), hessian = F,
+                    l = aidsy.l, r = aidsy.r,
+                    x.cure= cbind(1,cov.aidsy),
+                    x.risk= cov.aidsy, 
+                    grid=grid.obs)
 
 
 ## ---------------------------------------------------------------
@@ -595,28 +840,171 @@ head(hiv2)
 ## estimador de turnbull ou Non-Parametric Maximum Likelihood Estimator (NPMLE)
 ## ----
 
-npmle_fit_hiv2 <- ic_np(cbind(Li, Ri) ~ 0,
-                          data = hiv2)
+#npmle_fit_hiv2 <- ic_np(cbind(Li, Ri) ~ 0,
+#                          data = hiv2)
 
-plot(npmle_fit_hemo_teste) ## temos o plato !!
+#plot(npmle_fit_hiv2) ## temos o plato !!
 
-left = hiv2$Li + 0.000001
-rigth = hiv2$Ri + 0.000002
+
+## ------
+## O modelo Weibull
+## ------
+
+hiv2 = read.table('HIV_SUM_set2.txt', header = T)
+
+hiv2.weibull = ic_par(cbind(Li/7, Ri/7) ~ DoseType,
+                      data = hiv2, model = "ph", dist = "weibull")
+
+hiv2.weibull$coefficients
+
+AIC.surv(loglik = hiv2.weibull$llk, n.param = length(hiv2.weibull$coefficients))
+
+BIC.surv(loglik = hiv2.weibull$llk, n.param = length(hiv2.weibull$coefficients),
+         n.sample = dim(hiv2)[1])
+
+HC.surv(loglik = hiv2.weibull$llk, n.param = length(hiv2.weibull$coefficients),
+        n.sample = dim(hiv2)[1])
+
+## ---
+## modelo exponencial por partes com fracao de cura
+## ---
+
+source('C:/Users/NetoDavi/Desktop/survival_pibic/mep_interval_fc.R')
+
+hiv2 = read.table('HIV_SUM_set2.txt', header = T)
+
+# Misturar as linhas
+
+hiv2 <- hiv2[sample(row.names(hiv2)), ]
+
+
+left = (hiv2$Li)/7
+right = (hiv2$Ri)/7
 cov = hiv2$DoseType
-  
-intervalos = 7
 
-chute = c(rep(0.1,intervalos),
-          1,
-          1.2,0.1,
-          0.1)
+n.int = 8
 
-mepp.tentativa.hemo = fit.mepp.cf(L = left, R = rigth , n.int = intervalos,
-                          cov.risco = cbind(cov), cov.cura = cbind(1, cov),
-                          start = chute)
+x.f <- cbind(x1=cov)
+#x.c <- cbind(1, x1=cov)
 
-mepp.tentativa.hemo$estimated
+grid.obs=time.grid.interval(li=left, ri=right, type="OBS", 
+                            bmax=n.int)
 
+grid.obs=grid.obs[-c(1, length(grid.obs))]
+
+chutes = c(1,0.1,1,2,2,2,2,5,
+           1,0.5,
+           0.5)
+
+max.mep = optim(par = chutes, fn=loglikIC.MEP.fc, gr = NULL, method = "BFGS",
+                control=list(fnscale=1), hessian = TRUE,
+                l = left, r = right,
+                x.cure=x.c, x.risk=x.f, 
+                grid.vet=grid.obs)
+
+max.mep$par
+
+
+#max.mep$hessian
+max.mep$value
+
+AIC.surv(loglik = max.mep$value*-1,
+         n.param = length(max.mep$par))
+
+BIC.surv(loglik = max.mep$value*-1,
+         n.param = length(max.mep$par),
+         n.sample = dim(hiv2)[1])
+
+HC.surv(loglik = max.mep$value*-1,
+        n.param = length(max.mep$par),
+        n.sample = dim(hiv2)[1])
+
+## ---
+## modelo exponencial por partes potencia sem a fracao de cura
+## ---
+
+source('C:/Users/NetoDavi/Desktop/survival_pibic/dados_para_teste/proposta_MEPP_int_sem_cura.R')
+
+hiv2 = read.table('HIV_SUM_set2.txt', header = T)
+hiv2 <- hiv2[sample(row.names(hiv2)), ]
+
+left = (hiv2$Li)/7
+right = (hiv2$Ri)/7
+cov = cbind(x1=hiv2$DoseType)
+
+n.int = 5
+
+grid.obs=time.grid.interval(li=left, ri=right, type="OBS", 
+                            bmax=n.int)
+
+grid.obs=grid.obs[-c(1, length(grid.obs))]
+
+chutes = c(1,0.1,1,5,1,
+           5,
+           0.5)
+
+max.mepp.int = optim(par = chutes, fn=loglikIC.mepp.int,
+                     gr = NULL, method = "BFGS",
+                     control=list(fnscale=1), hessian = TRUE,
+                     l = left, r = right,
+                     x.cov=cov, 
+                     grid=grid.obs)
+
+max.mepp.int$par
+max.mepp.int$par
+
+
+
+AIC.surv(loglik = max.mepp.int$value*-1,
+         n.param = length(max.mepp.int$par))
+
+BIC.surv(loglik = max.mepp.int$value*-1,
+         n.param = length(max.mepp.int$par),
+         n.sample = dim(hiv2)[1])
+
+HC.surv(loglik = max.mepp.int$value*-1,
+        n.param = length(max.mepp.int$par),
+        n.sample = dim(hiv2)[1])
+
+
+
+
+
+## ---
+## modelo exponencial por partes potencia com fracao de cura
+## ---
+source('C:/Users/NetoDavi/Desktop/survival_pibic/mep_interval_fc.R')
+
+left = (hiv2$Li)/7
+right = (hiv2$Ri)/7
+cov = hiv2$DoseType
+
+n.int = 5
+
+x.f <- cbind(x1=cov)
+x.c <- cbind(1, x1=cov)
+
+grid.obs=time.grid.interval(li=left, ri=right, type="OBS", 
+                            bmax=n.int)
+
+grid.obs=grid.obs[-c(1, length(grid.obs))]
+
+chutes = c(1,0.2,1,5,4.5,
+           5, 
+           1, 0.5,
+           0.5)
+
+estimacao <- optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
+              control=list(fnscale=1), hessian = TRUE, l=left,
+              r=right, x.cure=x.c, x.risk=x.f, grid=grid.obs)
+
+estimacao$par
+
+AIC.surv(loglik = estimacao$value*-1, n.param = length(estimacao$par))
+BIC.surv(loglik = estimacao$value*-1, n.param = length(estimacao$par),
+        n.sample = nrow(hiv2))
+HC.surv(loglik = estimacao$value*-1, n.param = length(estimacao$par),
+        n.sample = nrow(hiv2))
 
 ## ---------------------------------------------------------------
 ## dados yoghurt_icensBKL 
