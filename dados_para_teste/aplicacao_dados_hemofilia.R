@@ -5,8 +5,8 @@ if(!require(pacman)) install.packages("pacman"); library(pacman)
 p_load(icenReg, ReIns)
 
 #setwd('C:\\Users\\Dionisio\\Desktop\\Dionisio_Neto\\PIBIC_Survival_Analysis\\dados_para_teste')
-source('C:/Users/NetoDavi/Desktop/survival_pibic/funcoes_sobrevivencia_pibic2023.R')
-source('C:/Users/NetoDavi/Desktop/survival_pibic/supervisor_functions.r')
+source('C:/Users/NetoDavi/Desktop/survival_pibic/source/funcoes_sobrevivencia_pibic2023.R')
+source('C:/Users/NetoDavi/Desktop/survival_pibic/source/supervisor_functions.r')
 
 
 setwd("C:/Users/NetoDavi/Desktop/survival_pibic/dados_para_teste")
@@ -56,7 +56,7 @@ HC.surv(loglik = weibull$llk, n.param = 3,n.sample = dim(hemo.icens)[1])
 ## Modelo Exponencial por partes com censura intervalar
 ## ------
 
-source('C:/Users/NetoDavi/Desktop/survival_pibic/mep_interval_fc.R')
+source('C:/Users/NetoDavi/Desktop/survival_pibic/source/mep_interval_fc.R')
 
 ll.hemo = hemo.icens$L/7
 rr.hemo = hemo.icens$R/7
@@ -71,9 +71,10 @@ grid.obs=time.grid.interval(li=ll.hemo, ri=rr.hemo, type="OBS",
 
 grid.obs=grid.obs[-c(1, length(grid.obs))]
 
-chutes = c(1,10,1,1,10,10,1,
+chutes = c(1,2,5,0.1,10,1,10,
            1,0.5,
            0.5)
+
 max.mep.fc = optim(par = chutes, fn=loglikIC.MEP.fc,
                    gr = NULL, method = "BFGS",
                    control=list(fnscale=1),
@@ -100,7 +101,7 @@ source('C:/Users/NetoDavi/Desktop/survival_pibic/dados_para_teste/proposta_MEPP_
 ll.hemo = hemo.icens$L/7
 rr.hemo = hemo.icens$R/7
 
-n.int = 3
+n.int = 7
 
 x.f <- cbind(hemo.icens$NoDose)
 #x.c <- cbind(1, hemo.icens$NoDose)

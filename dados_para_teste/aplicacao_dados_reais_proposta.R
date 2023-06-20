@@ -381,88 +381,38 @@ sexo = smoke2009$SexF
 
 covariaveis = cbind(tratamento, sexo, n_cigarros, duracao_dependente)
 
-
-## ---
-## modelo exponencial por partes potencia (sem fracao de cura) 
-## [Santos Junior e Scneider (2022)]
-## ---
-
-source('C:/Users/NetoDavi/Desktop/survival_pibic/dados_para_teste/proposta_MEPP_int_sem_cura.R')
-#
-# n.int = 2
-# 
-# grid.obs=time.grid.interval(li=smoke2009$Timept1/7, ri=smoke2009$Timept2/7,
-#                             type="OBS", bmax= n.int)
-# 
-# grid.obs=grid.obs[-c(1, length(grid.obs))]
-# 
-# ## variaveis do estudo
-# 
-# tratamento = smoke2009$SIUC # Tipo de tratamento (SI/UC)
-# n_cigarros = smoke2009$F10Cigs_pad # Numero de cigarros fumados por dia, normalizado
-# duracao_dependente = smoke2009$Duration_pad # Duracao como dependente, normalizado
-# sexo = smoke2009$SexF
-# 
-# covariaveis = cbind(tratamento, sexo, n_cigarros, duracao_dependente)
-# 
-# 
-# chute = c(1,5,
-#           1,
-#           0.1,0.1,0.1,0.1)
-# 
-# mepp.est = optim(par = chute, fn=loglikIC.mepp.int,
-#                      gr = NULL,method = "BFGS",
-#                      control=list(fnscale=1),
-#                      hessian = TRUE,
-#                      l=smoke2009$Timept1/7,
-#                      r=smoke2009$Timept2/7,
-#                      x.cov=covariaveis,
-#                      grid=grid.obs)
-# 
-# mepp.est$par
-
-
-#mepp.est$hessian
-#mepp.est$value
-
-AIC.surv(loglik = mepp.est$value*-1,
-         n.param = length(mepp.est$par))
-
-BIC.surv(loglik = mepp.est$value*-1,
-         n.param = length(mepp.est$par),
-         n.sample = dim(smoke2009)[1])
-
-HC.surv(loglik = mepp.est$value*-1,
-        n.param = length(mepp.est$par),
-        n.sample = dim(smoke2009)[1])
-
-
 ## ---
 ## modelo exponencial por partes com fracao de cura
 ## ---
 
 source('C:/Users/NetoDavi/Desktop/survival_pibic/mep_interval_fc.R')
 
-covariaveis = cbind(tratamento, sexo, n_cigarros, duracao_dependente)
+covariaveis = cbind(smoke2009$SIUC, smoke2009$SexF,
+                    smoke2009$Duration_pad, smoke2009$F10Cigs_pad)
 
-n.int = 8
+n.int = 4
 
-grid.obs=time.grid.interval(l = smoke2009$Timept1, r = smoke2009$Timept2,
+l.smoke= smoke2009$Timept1/7
+r.smoke= smoke2009$Timept2/7
+
+x.c = cbind(1,covariaveis)
+x.f = covariaveis
+  
+grid.obs=time.grid.interval(l = l.smoke, r = r.smoke,
                             type="OBS", bmax=n.int)
 
 grid.obs=grid.obs[-c(1, length(grid.obs))]
 
 
-chute = c(0.2,0.3,0.11,0.1,10,0.11,0.1,10,
-          1,0.3,0.1,0.1,0.1,
-          0.1,0.1,0.5,0.1)
+chutes = c(5,5,200,200,
+           1,0.3,0.1,0.1,0.1,
+           0.1,0.1,0.1,0.1)
 
-max.mep = optim(par = chute, fn=loglikIC.MEP.fc, gr = NULL, method = "BFGS",
+max.mep = optim(par = chutes, fn=loglikIC.MEP.fc, gr = NULL, method = "BFGS",
                 control=list(fnscale=1), hessian = TRUE,
-                l = smoke2009$Timept1/7, r = smoke2009$Timept2/7,
-                x.cure=covariaveis, x.risk= cbind(1,covariaveis), 
-                grid.vet=(grid.obs/3)*2.2)
-
+                l = l.smoke, r = r.smoke,
+                x.cure=x.c, x.risk= x.f, 
+                grid.vet=grid.obs)
 max.mep$par
 #max.mep$hessian
 max.mep$value
@@ -702,7 +652,7 @@ aidscohort$R.Y = ifelse(is.na(aidscohort$R.Y), Inf, aidscohort$R.Y)
 
 ## troca dos limites inferior (L) e superior (R) de Z
 aidscohort$L.Z = ifelse(is.na(aidscohort$L.Z), 0, aidscohort$L.Z)
-aidscohort$R.Z = ifelse(is.na(aidscohort$R.Z), Inf, aidscohort$R.Z)
+aidscohort$R.Z = ifelse(is.na(aidscohort$R.Z), 999999, aidscohort$R.Z)
 
 ## codificando para zero e um a variavel idade
 aidscohort$age = ifelse(aidscohort$age==2,1,0)
@@ -746,35 +696,29 @@ HC.surv(loglik = aidsz.weibull$llk, n.param = length(aidsz.weibull$coefficients)
 ## modelo exponencial por partes potencia com fracao de cura
 ## ---
 
+ll.aidsz = aidscohort$L.Z/7
+rr.aidsz = aidscohort$R.Z/7
 
-llz = as.numeric(aidscohort$L.Z) 
-rrz = as.numeric(aidscohort$R.Z) 
+n.int = 1
 
-cov.aidsz = cbind(aidscohort$age,aidscohort$group)
+x.f <- cbind(aidscohort$age, aidscohort$group)
+x.c <- cbind(1, aidscohort$age, aidscohort$group)
 
-n.int = 2
-
-grid.obs=time.grid.interval(l = llz, r = rrz,
-                            type="OBS", bmax=n.int)
+grid.obs=time.grid.interval(li=ll.aidsz, ri=rr.aidsz, type="OBS", 
+                            bmax=n.int)
 
 grid.obs=grid.obs[-c(1, length(grid.obs))]
 
-chutes = c(2,6,
-           2,
+chutes = c(10,
+           200,
            1,0.1,0.1,
            0.1,0.1)
 
-max.mepp.fc = optim(par = chutes, fn=loglikIC, gr = NULL,
-                    method = "Nelder-Mead",
-                    control=list(fnscale=1), hessian = F,
-                    l = llz, r = rrz,
-                    x.cure= cbind(1,cov.aidsz),
-                    x.risk= cov.aidsz, 
-                    grid=grid.obs)
-
-
-
-
+max.mepp = optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
+                 control=list(fnscale=1), hessian = TRUE,
+                 l = ll.aidsz, r = rr.aidsz,
+                 x.cure=x.c, x.risk=x.f, 
+                 grid=grid.obs)
 
 
 ## -----

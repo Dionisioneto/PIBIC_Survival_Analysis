@@ -58,7 +58,7 @@ left = (hiv2$Li)/7
 right = (hiv2$Ri)/7
 cov = hiv2$DoseType
 
-n.int = 8
+n.int = 5
 
 x.f <- cbind(cov)
 x.c <- cbind(1, x1=cov)
@@ -68,7 +68,7 @@ grid.obs=time.grid.interval(li=left, ri=right, type="OBS",
 
 grid.obs=grid.obs[-c(1, length(grid.obs))]
 
-chutes = c(1,0.1,1,2,2,2,5,2,
+chutes = c(1,0.1,1,2,2,
            1,0.5,
            0.5)
 
@@ -96,12 +96,6 @@ BIC.surv(loglik = max.mep$value*-1,
 HC.surv(loglik = max.mep$value*-1,
         n.param = length(max.mep$par),
         n.sample = dim(hiv2)[1])
-
-
-SpopMEP()
-
-
-
 
 
 # ## ---
@@ -158,13 +152,13 @@ HC.surv(loglik = max.mepp.int$value*-1,
 ## ---
 ## modelo exponencial por partes potencia com fracao de cura
 ## ---
-source('C:/Users/NetoDavi/Desktop/survival_pibic/mep_interval_fc.R')
+source('C:/Users/NetoDavi/Desktop/survival_pibic/source/supervisor_functions.R')
 
 left = (hiv2$Li)/7
 right = (hiv2$Ri)/7
 cov = hiv2$DoseType
 
-n.int = 8
+n.int = 2
 
 x.f <- cbind(x1=cov)
 x.c <- cbind(1, x1=cov)
@@ -174,10 +168,11 @@ grid.obs=time.grid.interval(li=left, ri=right, type="OBS",
 
 grid.obs=grid.obs[-c(1, length(grid.obs))]
 
-chutes = c(1,0.2,1,10,1,1,1,5,
-           9,
+chutes = c(1,0.2,
+           2,
            1, 0.5,
            0.5)
+
 
 estimacao <- optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
                    control=list(fnscale=1), hessian = TRUE, l=left,
