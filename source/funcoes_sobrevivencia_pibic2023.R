@@ -50,6 +50,13 @@ HC.surv = function(loglik, n.param, n.sample){
 }
 
 
+## Consistent AIC
+
+CAIC.surv = function(loglik, n.param, n.sample){
+  caic_criterion = -2*loglik + (log(n.sample) * n.param) + n.param
+  return(caic_criterion)
+}
+
 ## ---
 ## Funcao para trazer valores das
 ## funcoes do Exponencial por partes (EP, PEM)

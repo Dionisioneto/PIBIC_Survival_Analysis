@@ -42,6 +42,7 @@ axis(side=1, at=seq(1,58,4), labels=seq(1,58,4), cex.axis=0.7)
 #Criando o novo eixo-y contendo valores incrementados de 10 em 10
 axis(side=2, at=seq(0,1,0.1), labels=seq(0,1,0.1), cex.axis=0.7)
 
+getSCurves(turnbull_fit)
   
 ## Ajuste do modelo Weibull aos dados
 ## ---
