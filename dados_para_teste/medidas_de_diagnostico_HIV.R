@@ -27,7 +27,7 @@ grid.obs=time.grid.interval(li=left, ri=right, type="OBS",
 
 grid.obs=grid.obs[-c(1, length(grid.obs))]
 
-chutes = c(0.1,0.1,
+chutes = c(0.1,1,
            2,
            1,0.5,
            0.5)
@@ -54,10 +54,9 @@ matriz_est_global = matrix(0, nrow = nrow(hiv2),
 loglik_est_diff = rep(0, length.out = nrow(hiv2))
 
 
-for(individuo in 377:nrow(hiv2)){
+for(individuo in 1:nrow(hiv2)){
   
   ## Duas particoes
-  individuo = 7
   data = hiv2[-individuo,]
   
   left = (data$Li)/7
@@ -74,8 +73,46 @@ for(individuo in 377:nrow(hiv2)){
   
   grid.obs=grid.obs[-c(1, length(grid.obs))]
   
-  chutes = c(1,2,
-             5,
+  chutes = c(1,0.1,
+             2,
+             1,0.5,
+             0.5)
+  
+  
+  est <- optim(par = chutes, fn=loglikIC, gr = NULL, method = "BFGS",
+               control=list(fnscale=1), hessian = TRUE, l=left,
+               r=right, x.cure=x.c, x.risk=x.f, grid=grid.obs)
+  
+  matriz_est_global[individuo,] = est$par
+  loglik_est_diff[individuo] = est$value
+  
+  print(paste("retirando a observacao: ", individuo))
+}
+
+
+## pontos que necessitaram de uma mudanca no chute
+
+for(individuo in c(154,185,272,280,292,296,356)){
+  
+  ## Duas particoes
+  data = hiv2[-individuo,]
+  
+  left = (data$Li)/7
+  right = (data$Ri)/7
+  cov = data$DoseType
+  
+  n.int = 2
+  
+  x.f <- cbind(x1=cov)
+  x.c <- cbind(1, x1=cov)
+  
+  grid.obs=time.grid.interval(li=left, ri=right, type="OBS", 
+                              bmax=n.int)
+  
+  grid.obs=grid.obs[-c(1, length(grid.obs))]
+  
+  chutes = c(1,0.1,
+             2,
              1,0.5,
              0.5)
   
@@ -90,7 +127,9 @@ for(individuo in 377:nrow(hiv2)){
   print(paste("retirando a observacao: ", individuo))
 }
 
-matriz_est_global
+## 154,185,272,280,292,296,356
+
+matriz_est_global[c(154,185,272,280,292,296,356),]
 loglik_est_diff
 
 
@@ -100,10 +139,6 @@ dim(matriz_est_global)
 dim(loglik_est_diff.matrix)
 
 
-## n = 368
-## 154, 184,185, 280,
-
-##272,280,292,296,356
 
 loglik_estimacao2_int
 
@@ -150,21 +185,22 @@ text(pontos_influentes1, GDi_matrix[,1][pontos_influentes1],
 ## lambda2
 
 plot(1:length(GDi_matrix[,2]),GDi_matrix[,2], type = 'h',
-     ylim = c(0,max(GDi_matrix[,2]+1000)),
+     ylim = c(0,max(GDi_matrix[,2]+1)),
      xlab = "Observação",
      ylab = "|Distância Generalizada de Cook|",
      main = expression(hat(lambda)[2]),
      axes = F)
+
 
 #Criando o novo eixo-x contendo valores incrementados de 1 em 1
 axis(side=1, at=seq(0,nrow(hiv2),8),
      labels=seq(0,nrow(hiv2),8), cex.axis=0.7)
 
 #Criando o novo eixo-y contendo valores incrementados de 10 em 10
-axis(side=2, at=seq(0,max(GDi_matrix[,2]),10000),
-     labels=seq(0,max(GDi_matrix[,2]),10000), cex.axis=0.7)
+axis(side=2, at=seq(0,max(GDi_matrix[,2]+1),1),
+     labels=seq(0,max(GDi_matrix[,2]+1),1), cex.axis=0.7)
 
-pontos_influentes2 <- which(GDi_matrix[,2] > 200)
+pontos_influentes2 <- which(GDi_matrix[,2] > 10)
 points(pontos_influentes2, GDi_matrix[,2][pontos_influentes2],
        col = "red", pch = 16)
 
@@ -208,7 +244,7 @@ axis(side=1, at=seq(0,nrow(hiv2),8),
 axis(side=2, at=seq(0,max(GDi_matrix[,4]+500),500),
      labels=seq(0,max(GDi_matrix[,4]+500),500), cex.axis=0.7)
 
-pontos_influentes4 <- which(GDi_matrix[,4] > 10000)
+pontos_influentes4 <- which(GDi_matrix[,4] > 5000)
 points(pontos_influentes4, GDi_matrix[,4][pontos_influentes4],
        col = "red", pch = 16)
 
@@ -262,12 +298,12 @@ adj_positions <- ifelse(duplicated(GDi_matrix[,6][pontos_influentes6]),
 points(pontos_influentes6, GDi_matrix[,6][pontos_influentes6],
        col = "red", pch = 16)
 
-text(pontos_influentes6[-3], GDi_matrix[,6][pontos_influentes6[-3]], 
-     labels = pontos_influentes6[-3], 
+text(pontos_influentes6[-2], GDi_matrix[,6][pontos_influentes6[-2]], 
+     labels = pontos_influentes6[-2], 
      pos = 3)
 
-text(pontos_influentes6[3], GDi_matrix[,6][pontos_influentes6[3]], 
-     labels = pontos_influentes6[3], 
+text(pontos_influentes6[2], GDi_matrix[,6][pontos_influentes6[2]], 
+     labels = pontos_influentes6[2], 
      pos = 4)
 
 ## distancia de verossimilhancas
@@ -288,7 +324,7 @@ axis(side=2, at=seq(0,max(LD_theta)+5,1),
      labels=seq(0,max(LD_theta)+5,1), cex.axis=0.7)
 
 
-pontos_influentes_log <- which(LD_theta > 19)
+pontos_influentes_log <- which(LD_theta > 50)
 points(pontos_influentes_log, LD_theta[pontos_influentes_log],
        col = "red", pch = 16)
 
